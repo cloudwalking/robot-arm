@@ -68,7 +68,6 @@ void loop() {
 void animation_loop() {
   for (uint8_t i = 0; i < animations_count; i++) {
     animation_info[i] = (*animations[i])(_reactor, millis(), animation_info[i]);
-    Serial.println(animation_info[i]);
   }
   
   delay(10);
@@ -80,20 +79,28 @@ void animation_loop() {
   
 }
 
-double animation_reactor_1(Adafruit_NeoPixel pixels, double ms, double info) {
-  // Animation is 100 ms total.
+double animation_reactor_1(Adafruit_NeoPixel pixels, double current_ms, double info) {
   double const animation_length_ms = 100;
   
   // First run.
   if (info == 0) {
-    info = ms + animation_length_ms;
+    info = current_ms + animation_length_ms;
   }
   
-  double total_ms = info;
-  double percentage = (total_ms - ms) / animation_length_ms;
-  Serial.println(percentage);
+  NOT QUITE!
   
-  return info;
+  double end_time_ms = info;
+  double animation_elapsed_ms = end_time_ms - current_ms;
+  
+  if (animation_elapsed_ms >= animation_length_ms) {
+    return 0.0;
+  }  else {
+    double percentage = animation_elapsed_ms / animation_length_ms;
+    Serial.print("h ");
+    Serial.println(percentage);
+  }
+  
+  return end_time_ms;
 }
 
 double empty_animation(Adafruit_NeoPixel pixels, double ms, double info) {
