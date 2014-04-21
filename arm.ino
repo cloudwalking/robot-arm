@@ -22,6 +22,14 @@
 // Chance for white noise, 1/X
 #define WHITE_NOISE_FREQUENCY 7
 
+#define ANIMATION_ARRAY_SIZE 10
+// Animation function pointers.
+double (*animations[ANIMATION_ARRAY_SIZE]) (Adafruit_NeoPixel pixels, double ms, double info);
+// Animation function info.
+double animation_info[ANIMATION_ARRAY_SIZE];
+uint8_t animations_count;
+
+
 Adafruit_NeoPixel _reactor = Adafruit_NeoPixel(REACTOR_LED_COUNT, REACTOR_LED_DATA_PIN, NEO_GRB + NEO_KHZ400);
 Adafruit_NeoPixel _weapon = Adafruit_NeoPixel(WEAPON_LED_COUNT, WEAPON_LED_DATA_PIN, NEO_GRB + NEO_KHZ400);
 
@@ -36,32 +44,67 @@ void setup() {
   
   _reactor.setBrightness(REACTOR_LED_DEFAULT_BRIGHTNESS);
   _weapon.setBrightness(WEAPON_LED_DEFAULT_BRIGHTNESS);
-  
-  
+
   Serial.begin(9600);
+  
+  animations_count = 1;
+  animations[0] = animation_reactor_1;
+  animation_info[0] = 0.0;
 }
 
 void loop() {
   
-  full_color(_weapon, RED_COLOR);
-  show(_weapon);
-  
-  //rainbowCycle(20);
-  for (int i = 0; i < 15; i++) {
-    animate_backgroundColorWithColorFillingInForward(_reactor, PURPLE_COLOR, GREEN_COLOR, 40);
-    animate_backgroundColorWithColorFillingInForward(_reactor, GREEN_COLOR, PURPLE_COLOR, 40);
-  }
-  
-  for (int i = 0; i < 15; i++) {
-    // animate_backgroundColorWithColorFillingInForward(BLUE_COLOR, YELLOW_COLOR, 50);
-    // animate_backgroundColorWithColorFillingInBackward(YELLOW_COLOR, BLUE_COLOR, 50);
-  }
-  
-  for (int i = 0; i < 15; i++) {
-    // animate_backgroundColorWithColorFillingInForward(RED_COLOR, YELLOW_COLOR, 50);
-    // animate_backgroundColorWithColorFillingInBackward(YELLOW_COLOR, RED_COLOR, 50);
-  }
+  animation_loop();
+    
+  // full_color(_weapon, RED_COLOR);
+  // show(_weapon);
+  // 
+  // for (int i = 0; i < 15; i++) {
+  //   animate_backgroundColorWithColorFillingInForward(_reactor, PURPLE_COLOR, GREEN_COLOR, 40);
+  //   animate_backgroundColorWithColorFillingInForward(_reactor, GREEN_COLOR, PURPLE_COLOR, 40);
+  // }
 }
+
+void animation_loop() {
+  for (uint8_t i = 0; i < animations_count; i++) {
+    animation_info[i] = (*animations[i])(_reactor, millis(), animation_info[i]);
+    Serial.println(animation_info[i]);
+  }
+  
+  delay(10);
+  
+
+  // double (*anim)(double, double);
+  // anim = &animation_reactor_1;
+  // v = (*anim)(1.0, v);
+  
+}
+
+double animation_reactor_1(Adafruit_NeoPixel pixels, double ms, double info) {
+  // Animation is 100 ms total.
+  double const animation_length_ms = 100;
+  
+  // First run.
+  if (info == 0) {
+    info = ms + animation_length_ms;
+  }
+  
+  double total_ms = info;
+  double percentage = (total_ms - ms) / animation_length_ms;
+  Serial.println(percentage);
+  
+  return info;
+}
+
+double empty_animation(Adafruit_NeoPixel pixels, double ms, double info) {
+  // Do nothing.
+}
+
+
+
+
+
+
 
 void animate_backgroundColorWithColorFillingInForward(Adafruit_NeoPixel pixels, uint16_t background, uint16_t fill, uint16_t wait) {
   full_color(pixels, background);
