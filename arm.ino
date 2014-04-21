@@ -2,9 +2,13 @@
 
 #include <Adafruit_NeoPixel.h>
 
-#define LED_COUNT 3
-#define LED_DATA_PIN 6
-#define LED_DEFAULT_BRIGHTNESS 60
+#define REACTOR_LED_COUNT 3
+#define REACTOR_LED_DATA_PIN 6
+#define REACTOR_LED_DEFAULT_BRIGHTNESS 60
+
+#define WEAPON_LED_COUNT 4
+#define WEAPON_LED_DATA_PIN 5
+#define WEAPON_LED_DEFAULT_BRIGHTNESS 60
 
 #define RED_COLOR 0
 #define ORANGE_COLOR 32
@@ -18,20 +22,34 @@
 // Chance for white noise, 1/X
 #define WHITE_NOISE_FREQUENCY 7
 
-Adafruit_NeoPixel _pixels = Adafruit_NeoPixel(LED_COUNT, LED_DATA_PIN, NEO_GRB + NEO_KHZ400);
+Adafruit_NeoPixel _reactor = Adafruit_NeoPixel(REACTOR_LED_COUNT, REACTOR_LED_DATA_PIN, NEO_GRB + NEO_KHZ400);
+Adafruit_NeoPixel _weapon = Adafruit_NeoPixel(WEAPON_LED_COUNT, WEAPON_LED_DATA_PIN, NEO_GRB + NEO_KHZ400);
+
+Adafruit_NeoPixel _pixels = _reactor;
 
 void setup() {
-  _pixels.begin();
-  _pixels.show();
-  _pixels.setBrightness(LED_DEFAULT_BRIGHTNESS);
+  _reactor.begin();
+  _weapon.begin();
+  
+  _reactor.show();
+  _weapon.show();
+  
+  _reactor.setBrightness(REACTOR_LED_DEFAULT_BRIGHTNESS);
+  _weapon.setBrightness(WEAPON_LED_DEFAULT_BRIGHTNESS);
+  
+  
   Serial.begin(9600);
 }
 
 void loop() {
+  
+  full_color(_weapon, RED_COLOR);
+  show(_weapon);
+  
   //rainbowCycle(20);
   for (int i = 0; i < 15; i++) {
-    animate_backgroundColorWithColorFillingInForward(PURPLE_COLOR, GREEN_COLOR, 40);
-    animate_backgroundColorWithColorFillingInForward(GREEN_COLOR, PURPLE_COLOR, 40);
+    animate_backgroundColorWithColorFillingInForward(_reactor, PURPLE_COLOR, GREEN_COLOR, 40);
+    animate_backgroundColorWithColorFillingInForward(_reactor, GREEN_COLOR, PURPLE_COLOR, 40);
   }
   
   for (int i = 0; i < 15; i++) {
@@ -45,68 +63,68 @@ void loop() {
   }
 }
 
-void animate_backgroundColorWithColorFillingInForward(uint16_t background, uint16_t fill, uint16_t wait) {
-  full_color(background);
-  show();
+void animate_backgroundColorWithColorFillingInForward(Adafruit_NeoPixel pixels, uint16_t background, uint16_t fill, uint16_t wait) {
+  full_color(pixels, background);
+  show(pixels);
   delay(wait);
 
-  for (int16_t i = 0; i < LED_COUNT; i++) {
-    _pixels.setPixelColor(i, color(fill));
-    _pixels.show();
-    whiteNoise(WHITE_NOISE_FREQUENCY, (rand() % 3) + 1);
+  for (int16_t i = 0; i < pixels.numPixels(); i++) {
+    pixels.setPixelColor(i, color(fill));
+    pixels.show();
+    whiteNoise(pixels, WHITE_NOISE_FREQUENCY, (rand() % 3) + 1);
     delay(wait);
   }
 }
 
-void animate_backgroundColorWithColorFillingInBackward(uint16_t background, uint16_t fill, uint16_t wait) {
-  full_color(background);
-  show();
+void animate_backgroundColorWithColorFillingInBackward(Adafruit_NeoPixel pixels, uint16_t background, uint16_t fill, uint16_t wait) {
+  full_color(pixels, background);
+  show(pixels);
   delay(wait);
 
-  for (int16_t i = LED_COUNT - 1; i >= 0; i--) {
-    _pixels.setPixelColor(i, color(fill));
-    _pixels.show();
-    whiteNoise(WHITE_NOISE_FREQUENCY, (rand() % 3) + 1);
+  for (int16_t i = pixels.numPixels() - 1; i >= 0; i--) {
+    pixels.setPixelColor(i, color(fill));
+    pixels.show();
+    whiteNoise(pixels, WHITE_NOISE_FREQUENCY, (rand() % 3) + 1);
     delay(wait);
   }
 }
 
-void whiteNoise(uint16_t chance, uint16_t pixels) {
+void whiteNoise(Adafruit_NeoPixel pixels, uint16_t chance, uint16_t number_to_light) {
   // srand(millis());
   if (rand() % chance == 0) {
-    for (uint16_t i = 0; i < pixels; i++) {
-      uint16_t pixel = rand() % LED_COUNT;
-      _pixels.setPixelColor(pixel, color(WHITE_COLOR));
+    for (uint16_t i = 0; i < number_to_light; i++) {
+      uint16_t pixel = rand() % pixels.numPixels();
+      pixels.setPixelColor(pixel, color(WHITE_COLOR));
     }
   }
 }
 
-void rainbowCycle(uint8_t wait) {
-  uint16_t i, j;
+// void rainbowCycle(uint8_t wait) {
+//   uint16_t i, j;
+// 
+//   for(j=0; j<256*5; j++) { // 5 cycles of all colors on wheel
+//     for(i=0; i< LED_COUNT; i++) {
+//       _pixels.setPixelColor(i, color(((i * 256 / LED_COUNT) + j) & 255));
+//     }
+//     _pixels.show();
+//     delay(wait);
+//   }
+// }
 
-  for(j=0; j<256*5; j++) { // 5 cycles of all colors on wheel
-    for(i=0; i< LED_COUNT; i++) {
-      _pixels.setPixelColor(i, color(((i * 256 / LED_COUNT) + j) & 255));
-    }
-    _pixels.show();
-    delay(wait);
+void full_color(Adafruit_NeoPixel pixels, uint16_t c) {
+  for (uint16_t i = 0; i < pixels.numPixels(); i++) {
+    pixels.setPixelColor(i, color(c));
   }
 }
 
-void full_color(uint16_t c) {
-  for (uint16_t i = 0; i < LED_COUNT; i++) {
-    _pixels.setPixelColor(i, color(c));
+void full_off(Adafruit_NeoPixel pixels) {
+  for (uint16_t i = 0; i < pixels.numPixels(); i++) {
+    pixels.setPixelColor(i, 0);
   }
 }
 
-void full_off() {
-  for (uint16_t i = 0; i < LED_COUNT; i++) {
-    _pixels.setPixelColor(i, 0);
-  }
-}
-
-void show() {
-  _pixels.show(); 
+void show(Adafruit_NeoPixel pixels) {
+  pixels.show(); 
 }
 
 // Color 0 from 383
