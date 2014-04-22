@@ -51,8 +51,9 @@ void setup() {
 
   // The first animation.
   Animation first_animation;
-  first_animation.userInfo = 0.1;
-  bool (*first_animation_fuction)(Animation *, double) = &animation_reactor1;
+  first_animation.userInfo = 0.0;
+  first_animation.isFinished = false;
+  void (*first_animation_fuction)(Animation *, double) = &animation_reactor_PurpleWithGreenFillingForward;
   first_animation.function = first_animation_fuction;
 
   animations[0] = first_animation;
@@ -61,133 +62,93 @@ void setup() {
 }
 
 void loop() {
-  
   animation_loop();
-  delay(500);
-    
-  // full_color(_weapon, RED_COLOR);
-  // show(_weapon);
-  // 
-  // for (int i = 0; i < 15; i++) {
-  //   animate_backgroundColorWithColorFillingInForward(_reactor, PURPLE_COLOR, GREEN_COLOR, 40);
-  //   animate_backgroundColorWithColorFillingInForward(_reactor, GREEN_COLOR, PURPLE_COLOR, 40);
-  // }
+  delay(10);
 }
 
 void animation_loop() {
   for (uint8_t i = 0; i < animations_count; i++) {
     Animation *a = &animations[i];
-    bool (*function)(Animation *, double) = (*a).function;
+    void (*function)(Animation *, double) = (*a).function;
     function(a, millis());
   }
-  // show(_reactor);
-  // show(_weapon);
+  show(_reactor);
+  show(_weapon);
 }
 
-// void removeAnimation
+void animation_reactor_PurpleWithGreenFillingForward(Animation *animation, double current_ms) {
+  animate_backgroundColorWithColorFillingForward(_reactor, PURPLE_COLOR, GREEN_COLOR,
+                                                 animation, current_ms);
+}
 
-bool animation_reactor1(Animation *animation, double current_ms) {
-  double const animation_length_ms = 10000.0;
-  
+
+void animate_backgroundColorWithColorFillingForward(Adafruit_NeoPixel pixels, uint16_t back, uint16_t fill,
+                                                    Animation *animation, double current_ms) {
+  // Animation time in milliseconds.
+  double const animation_length_ms = 250.0;
+
+  // First some boilerplate.
   double end_time_ms = animation->userInfo;
-  
+
   // Is this the first run?
-  if (end_time_ms == 0.1) {
-    Serial.println("animation_reactor1 first run");
+  if (end_time_ms == 0.0) {
     end_time_ms = current_ms + animation_length_ms;
     animation->userInfo = end_time_ms;
   }
-  // // Is this an expired animation?
+  // Expired animation?
   else if (end_time_ms < current_ms) {
-  //   // reset
-  //   // animation.userInfo = 0.0;
-  //   // animation_reactor1(
-    Serial.println("done");
+    // If this animation has expired, reset it.
+    animation->userInfo = 0.0;
+    animation->isFinished = true;
   }
-  Serial.print(".");
-  // 
-  // double animation_elapsed_ms = end_time_ms - current_ms;
-  // double percentage = animation_elapsed_ms / animation_length_ms;
-  // Serial.println(percentage);
-}
+  
+  double remaining_ms = end_time_ms - current_ms;
+  double percentage_remaining = 100 * remaining_ms / animation_length_ms;
+  double percentage_complete = 100 - percentage_remaining;
+  
+  // Now push some pixels!!
 
-// double animation_reactor_1(Adafruit_NeoPixel pixels, double current_ms, double end_time_ms) {
-//   double const animation_length_ms = 100;
-//   
-//   // First run.
-//   if (end_time_ms <= 0.0) {
-//     end_time_ms = current_ms + animation_length_ms;
-//   }
-//   
-//   double animation_elapsed_ms = end_time_ms - current_ms;
-//   
-//   if (animation_elapsed_ms >= animation_length_ms) {
-//     Serial.println("done ");
-//     return 0.0;
-//   } else {
-//     double percentage = animation_elapsed_ms / animation_length_ms;
-//     Serial.print("h ");
-//     Serial.println(percentage);
-//   }
-//   
-//   return end_time_ms;
-// }
-
-double empty_animation(Adafruit_NeoPixel pixels, double ms, double info) {
-  // Do nothing.
-}
-
-
-
-
-
-
-
-void animate_backgroundColorWithColorFillingInForward(Adafruit_NeoPixel pixels, uint16_t background, uint16_t fill, uint16_t wait) {
-  full_color(pixels, background);
-  show(pixels);
-  delay(wait);
-
-  for (int16_t i = 0; i < pixels.numPixels(); i++) {
+  // Is this the first run?
+  if (percentage_complete == 100.0) {
+    full_color(pixels, back);
+  }
+  
+  // This animation fills in LEDs from left to right. Choose the furthest right pixel.
+  int right_pixel = percentage_complete / (100.0 / pixels.numPixels());
+  
+  Serial.print("percentage : "); Serial.println(percentage_complete);
+  Serial.print("right_pixel: "); Serial.println(right_pixel);
+  
+  // Fill in everything to the left.
+  for (int16_t i = 0; i < right_pixel; i++) {
     pixels.setPixelColor(i, color(fill));
-    pixels.show();
-    whiteNoise(pixels, WHITE_NOISE_FREQUENCY, (rand() % 3) + 1);
-    delay(wait);
   }
 }
 
-void animate_backgroundColorWithColorFillingInBackward(Adafruit_NeoPixel pixels, uint16_t background, uint16_t fill, uint16_t wait) {
-  full_color(pixels, background);
-  show(pixels);
-  delay(wait);
+/////////////////////////////////////////////////////
+/////////////////////////////////////////////////////
+/////////////////////////////////////////////////////
 
-  for (int16_t i = pixels.numPixels() - 1; i >= 0; i--) {
-    pixels.setPixelColor(i, color(fill));
-    pixels.show();
-    whiteNoise(pixels, WHITE_NOISE_FREQUENCY, (rand() % 3) + 1);
-    delay(wait);
-  }
-}
-
-void whiteNoise(Adafruit_NeoPixel pixels, uint16_t chance, uint16_t number_to_light) {
-  // srand(millis());
-  if (rand() % chance == 0) {
-    for (uint16_t i = 0; i < number_to_light; i++) {
-      uint16_t pixel = rand() % pixels.numPixels();
-      pixels.setPixelColor(pixel, color(WHITE_COLOR));
-    }
-  }
-}
-
-// void rainbowCycle(uint8_t wait) {
-//   uint16_t i, j;
+// void animate_backgroundColorWithColorFillingInBackward(Adafruit_NeoPixel pixels, uint16_t background, uint16_t fill, uint16_t wait) {
+//   full_color(pixels, background);
+//   show(pixels);
+//   delay(wait);
 // 
-//   for(j=0; j<256*5; j++) { // 5 cycles of all colors on wheel
-//     for(i=0; i< LED_COUNT; i++) {
-//       _pixels.setPixelColor(i, color(((i * 256 / LED_COUNT) + j) & 255));
-//     }
-//     _pixels.show();
+//   for (int16_t i = pixels.numPixels() - 1; i >= 0; i--) {
+//     pixels.setPixelColor(i, color(fill));
+//     pixels.show();
+//     whiteNoise(pixels, WHITE_NOISE_FREQUENCY, (rand() % 3) + 1);
 //     delay(wait);
+//   }
+// }
+// 
+// void whiteNoise(Adafruit_NeoPixel pixels, uint16_t chance, uint16_t number_to_light) {
+//   // srand(millis());
+//   if (rand() % chance == 0) {
+//     for (uint16_t i = 0; i < number_to_light; i++) {
+//       uint16_t pixel = rand() % pixels.numPixels();
+//       pixels.setPixelColor(pixel, color(WHITE_COLOR));
+//     }
 //   }
 // }
 
