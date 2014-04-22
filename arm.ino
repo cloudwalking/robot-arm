@@ -24,7 +24,7 @@
 #define WHITE_NOISE_FREQUENCY 7
 
 #define ANIMATION_ARRAY_SIZE 10
-Animation animations[ANIMATION_ARRAY_SIZE];
+Animation* animations[ANIMATION_ARRAY_SIZE];
 uint8_t animations_count;
 
 Adafruit_NeoPixel _reactor = Adafruit_NeoPixel(REACTOR_LED_COUNT, REACTOR_LED_DATA_PIN, NEO_GRB + NEO_KHZ400);
@@ -36,7 +36,7 @@ void setup() {
   animations_count = 0;
   
   Serial.begin(9600);
-  while (!Serial) { }
+  // while (!Serial) { }
 
   _reactor.begin();
   _weapon.begin();
@@ -44,13 +44,13 @@ void setup() {
   _reactor.setBrightness(REACTOR_LED_DEFAULT_BRIGHTNESS);
   _weapon.setBrightness(WEAPON_LED_DEFAULT_BRIGHTNESS);
 
-  Animation reactor1;
+  static Animation reactor1;
   reactor1.userInfo = 0.0;
   reactor1.isFinished = false;
   void (*reactor1_fn)(Animation *, double) = &animation_reactor1;
   reactor1.function = reactor1_fn;
 
-  animations[++animations_count - 1] = reactor1;
+  animations[++animations_count - 1] = &reactor1;
 }
 
 void loop() {
@@ -59,10 +59,8 @@ void loop() {
 }
 
 void animation_loop() {
-  Serial.println("animation_loop");
   for (uint8_t i = 0; i < animations_count; i++) {
-    Serial.print(" - ");
-    Animation *a = &animations[i];
+    Animation *a = animations[i];
     void (*function)(Animation *, double) = (*a).function;
     function(a, millis());
   }
@@ -71,7 +69,7 @@ void animation_loop() {
 }
 
 void animation_reactor1(Animation *animation, double current_ms) {
-  double const animation_length_ms = 2000.0;
+  double const animation_length_ms = 800.0;
   double percentage_complete = animation_boilerplate(animation, current_ms, animation_length_ms);
 
   // This animation is two keyframes, each of which is its own animation.
@@ -96,8 +94,8 @@ void animation_reactor1(Animation *animation, double current_ms) {
     purple_filling_with_green.function = purple_filling_with_green_fn;
     green_filling_with_purple.function = green_filling_with_purple_fn;
     
-    animations[++animations_count - 1] = purple_filling_with_green;
-    animations[++animations_count - 1] = green_filling_with_purple;
+    animations[++animations_count - 1] = &purple_filling_with_green;
+    animations[++animations_count - 1] = &green_filling_with_purple;
   }
   // Expired animation?
   else if (percentage_complete >= 100.0) {
@@ -106,17 +104,12 @@ void animation_reactor1(Animation *animation, double current_ms) {
     animations_count -= 2;
   }
   
-  Serial.print("  ");
-  Serial.print(percentage_complete);
-  
   if (percentage_complete < 50.0) {
-    Serial.println("  < 50");
     // Enable purple being filled by green.
     purple_filling_with_green.isFinished = false;
     // Disable green being filled by purple.
     green_filling_with_purple.isFinished = true;
   } else {
-    Serial.println("  !< 50");
     // Disable purple being filled by green.
     purple_filling_with_green.isFinished = true;
     // Enable green being filled by purple.
@@ -125,32 +118,24 @@ void animation_reactor1(Animation *animation, double current_ms) {
 }
 
 void animation_PurpleWithGreenFillingForward(Animation *animation, double current_ms) {
-  animate_backgroundColorWithColorFillingForward(_reactor, BLUE_COLOR, BLUE_COLOR,
+  animate_backgroundColorWithColorFillingForward(_reactor, PURPLE_COLOR, GREEN_COLOR,
                                                  animation, current_ms);
-  // animate_backgroundColorWithColorFillingForward(_reactor, PURPLE_COLOR, GREEN_COLOR,
-  //                                                animation, current_ms);
 }
 
 void animation_GreenWithPurpleFillingForward(Animation *animation, double current_ms) {
-  animate_backgroundColorWithColorFillingForward(_reactor, RED_COLOR, RED_COLOR,
-                                                 animation, current_ms);
-  // animate_backgroundColorWithColorFillingForward(_reactor, GREEN_COLOR, PURPLE_COLOR,
-  //                                               animation, current_ms);
+  animate_backgroundColorWithColorFillingForward(_reactor, GREEN_COLOR, PURPLE_COLOR,
+                                                animation, current_ms);
 }
 
 void animate_backgroundColorWithColorFillingForward(Adafruit_NeoPixel pixels, uint16_t back, uint16_t fill,
                                                     Animation *animation, double current_ms) {
   // Animation time in milliseconds.
-  double const animation_length_ms = 1000.0;
+  double const animation_length_ms = 400.0;
   
   if (animation->isFinished) {
     animation->userInfo = 0.0;
-    Serial.print("  finished ");
-    Serial.println(back);
     return;
   }
-  Serial.println("  -");
-
 
   double percentage_complete = animation_boilerplate(animation, current_ms, animation_length_ms);
   
