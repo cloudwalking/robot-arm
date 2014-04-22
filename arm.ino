@@ -1,6 +1,7 @@
+#include <Adafruit_NeoPixel.h>
 #include <stdlib.h>
 
-#include <Adafruit_NeoPixel.h>
+#include "Animation.h"
 
 #define REACTOR_LED_COUNT 3
 #define REACTOR_LED_DATA_PIN 6
@@ -24,9 +25,10 @@
 
 #define ANIMATION_ARRAY_SIZE 10
 // Animation function pointers.
-double (*animations[ANIMATION_ARRAY_SIZE]) (Adafruit_NeoPixel pixels, double ms, double info);
+// double (*animations[ANIMATION_ARRAY_SIZE]) (Adafruit_NeoPixel pixels, double ms, double info);
 // Animation function info.
-double animation_info[ANIMATION_ARRAY_SIZE];
+// double animation_info[ANIMATION_ARRAY_SIZE];
+Animation animations[ANIMATION_ARRAY_SIZE];
 uint8_t animations_count;
 
 
@@ -46,15 +48,22 @@ void setup() {
   _weapon.setBrightness(WEAPON_LED_DEFAULT_BRIGHTNESS);
 
   Serial.begin(9600);
-  
+
+  // The first animation.
+  Animation first_animation;
+  first_animation.userInfo = 0.1;
+  bool (*first_animation_fuction)(Animation *, double) = &animation_reactor1;
+  first_animation.function = first_animation_fuction;
+
+  animations[0] = first_animation;
+
   animations_count = 1;
-  animations[0] = animation_reactor_1;
-  animation_info[0] = 0.0;
 }
 
 void loop() {
   
   animation_loop();
+  delay(500);
     
   // full_color(_weapon, RED_COLOR);
   // show(_weapon);
@@ -67,41 +76,62 @@ void loop() {
 
 void animation_loop() {
   for (uint8_t i = 0; i < animations_count; i++) {
-    animation_info[i] = (*animations[i])(_reactor, millis(), animation_info[i]);
+    Animation *a = &animations[i];
+    bool (*function)(Animation *, double) = (*a).function;
+    function(a, millis());
   }
-  
-  delay(10);
-  
-
-  // double (*anim)(double, double);
-  // anim = &animation_reactor_1;
-  // v = (*anim)(1.0, v);
-  
+  // show(_reactor);
+  // show(_weapon);
 }
 
-double animation_reactor_1(Adafruit_NeoPixel pixels, double current_ms, double info) {
-  double const animation_length_ms = 100;
+// void removeAnimation
+
+bool animation_reactor1(Animation *animation, double current_ms) {
+  double const animation_length_ms = 10000.0;
   
-  // First run.
-  if (info == 0) {
-    info = current_ms + animation_length_ms;
+  double end_time_ms = animation->userInfo;
+  
+  // Is this the first run?
+  if (end_time_ms == 0.1) {
+    Serial.println("animation_reactor1 first run");
+    end_time_ms = current_ms + animation_length_ms;
+    animation->userInfo = end_time_ms;
   }
-  
-  NOT QUITE!
-  
-  double end_time_ms = info;
-  double animation_elapsed_ms = end_time_ms - current_ms;
-  
-  if (animation_elapsed_ms >= animation_length_ms) {
-    return 0.0;
-  }  else {
-    double percentage = animation_elapsed_ms / animation_length_ms;
-    Serial.print("h ");
-    Serial.println(percentage);
+  // // Is this an expired animation?
+  else if (end_time_ms < current_ms) {
+  //   // reset
+  //   // animation.userInfo = 0.0;
+  //   // animation_reactor1(
+    Serial.println("done");
   }
-  
-  return end_time_ms;
+  Serial.print(".");
+  // 
+  // double animation_elapsed_ms = end_time_ms - current_ms;
+  // double percentage = animation_elapsed_ms / animation_length_ms;
+  // Serial.println(percentage);
 }
+
+// double animation_reactor_1(Adafruit_NeoPixel pixels, double current_ms, double end_time_ms) {
+//   double const animation_length_ms = 100;
+//   
+//   // First run.
+//   if (end_time_ms <= 0.0) {
+//     end_time_ms = current_ms + animation_length_ms;
+//   }
+//   
+//   double animation_elapsed_ms = end_time_ms - current_ms;
+//   
+//   if (animation_elapsed_ms >= animation_length_ms) {
+//     Serial.println("done ");
+//     return 0.0;
+//   } else {
+//     double percentage = animation_elapsed_ms / animation_length_ms;
+//     Serial.print("h ");
+//     Serial.println(percentage);
+//   }
+//   
+//   return end_time_ms;
+// }
 
 double empty_animation(Adafruit_NeoPixel pixels, double ms, double info) {
   // Do nothing.
