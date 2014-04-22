@@ -85,9 +85,38 @@ void animation_reactor_PurpleWithGreenFillingForward(Animation *animation, doubl
 void animate_backgroundColorWithColorFillingForward(Adafruit_NeoPixel pixels, uint16_t back, uint16_t fill,
                                                     Animation *animation, double current_ms) {
   // Animation time in milliseconds.
-  double const animation_length_ms = 250.0;
+  double const animation_length_ms = 2500.0;
+  
+  if (animation->isFinished) {
+    // return;
+  }
 
-  // First some boilerplate.
+  double percentage_complete = animation_boilerplate(animation, current_ms, animation_length_ms);
+  
+  // Now push some pixels!
+
+  // Is this the first run?
+  if (percentage_complete == 0.0) {
+    full_color(pixels, back);
+  }
+  
+  // First keyframe is all background color.
+  // Second keyframe is first pixel colored.
+  // Third keyframe is second pixel colored.
+  // Etc.
+  double numberOfKeyframes = 1 + pixels.numPixels();
+  
+  // This animation fills in LEDs from left to right. Choose the furthest right pixel.
+  int right_pixel = percentage_complete / (100.0 / numberOfKeyframes);
+  
+  // Fill in everything up to the right.
+  for (int16_t i = 0; i < right_pixel; i++) {
+    pixels.setPixelColor(i, color(fill));
+  }
+}
+
+// Returns the animation percentage point.
+double animation_boilerplate(Animation *animation, double current_ms, double animation_length_ms) {
   double end_time_ms = animation->userInfo;
 
   // Is this the first run?
@@ -97,32 +126,17 @@ void animate_backgroundColorWithColorFillingForward(Adafruit_NeoPixel pixels, ui
   }
   // Expired animation?
   else if (end_time_ms < current_ms) {
-    // If this animation has expired, reset it.
+    // Reset this animation for next time.
     animation->userInfo = 0.0;
+    // Mark that we're done.
     animation->isFinished = true;
   }
   
   double remaining_ms = end_time_ms - current_ms;
   double percentage_remaining = 100 * remaining_ms / animation_length_ms;
   double percentage_complete = 100 - percentage_remaining;
-  
-  // Now push some pixels!!
 
-  // Is this the first run?
-  if (percentage_complete == 100.0) {
-    full_color(pixels, back);
-  }
-  
-  // This animation fills in LEDs from left to right. Choose the furthest right pixel.
-  int right_pixel = percentage_complete / (100.0 / pixels.numPixels());
-  
-  Serial.print("percentage : "); Serial.println(percentage_complete);
-  Serial.print("right_pixel: "); Serial.println(right_pixel);
-  
-  // Fill in everything to the left.
-  for (int16_t i = 0; i < right_pixel; i++) {
-    pixels.setPixelColor(i, color(fill));
-  }
+  return percentage_complete;
 }
 
 /////////////////////////////////////////////////////
