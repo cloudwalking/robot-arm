@@ -24,13 +24,8 @@
 #define WHITE_NOISE_FREQUENCY 7
 
 #define ANIMATION_ARRAY_SIZE 10
-// Animation function pointers.
-// double (*animations[ANIMATION_ARRAY_SIZE]) (Adafruit_NeoPixel pixels, double ms, double info);
-// Animation function info.
-// double animation_info[ANIMATION_ARRAY_SIZE];
 Animation animations[ANIMATION_ARRAY_SIZE];
 uint8_t animations_count;
-
 
 Adafruit_NeoPixel _reactor = Adafruit_NeoPixel(REACTOR_LED_COUNT, REACTOR_LED_DATA_PIN, NEO_GRB + NEO_KHZ400);
 Adafruit_NeoPixel _weapon = Adafruit_NeoPixel(WEAPON_LED_COUNT, WEAPON_LED_DATA_PIN, NEO_GRB + NEO_KHZ400);
@@ -41,6 +36,7 @@ void setup() {
   animations_count = 0;
   
   Serial.begin(9600);
+  while (!Serial) { }
 
   _reactor.begin();
   _weapon.begin();
@@ -75,7 +71,7 @@ void animation_loop() {
 }
 
 void animation_reactor1(Animation *animation, double current_ms) {
-  double const animation_length_ms = 20000.0;
+  double const animation_length_ms = 2000.0;
   double percentage_complete = animation_boilerplate(animation, current_ms, animation_length_ms);
 
   // This animation is two keyframes, each of which is its own animation.
@@ -102,10 +98,6 @@ void animation_reactor1(Animation *animation, double current_ms) {
     
     animations[++animations_count - 1] = purple_filling_with_green;
     animations[++animations_count - 1] = green_filling_with_purple;
-    
-    // Serial.println((animations[1]));
-    // Serial.println((animations[2]));
-    // Serial.println();
   }
   // Expired animation?
   else if (percentage_complete >= 100.0) {
@@ -149,7 +141,7 @@ void animation_GreenWithPurpleFillingForward(Animation *animation, double curren
 void animate_backgroundColorWithColorFillingForward(Adafruit_NeoPixel pixels, uint16_t back, uint16_t fill,
                                                     Animation *animation, double current_ms) {
   // Animation time in milliseconds.
-  double const animation_length_ms = 10000.0;
+  double const animation_length_ms = 1000.0;
   
   if (animation->isFinished) {
     animation->userInfo = 0.0;
