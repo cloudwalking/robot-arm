@@ -38,36 +38,34 @@ Adafruit_NeoPixel _weapon = Adafruit_NeoPixel(WEAPON_LED_COUNT, WEAPON_LED_DATA_
 Adafruit_NeoPixel _pixels = _reactor;
 
 void setup() {
+  animations_count = 0;
+  
+  Serial.begin(9600);
+
   _reactor.begin();
   _weapon.begin();
-  
-  _reactor.show();
-  _weapon.show();
   
   _reactor.setBrightness(REACTOR_LED_DEFAULT_BRIGHTNESS);
   _weapon.setBrightness(WEAPON_LED_DEFAULT_BRIGHTNESS);
 
-  Serial.begin(9600);
+  Animation reactor1;
+  reactor1.userInfo = 0.0;
+  reactor1.isFinished = false;
+  void (*reactor1_fn)(Animation *, double) = &animation_reactor1;
+  reactor1.function = reactor1_fn;
 
-  // The first animation.
-  Animation first_animation;
-  first_animation.userInfo = 0.0;
-  first_animation.isFinished = false;
-  void (*first_animation_fuction)(Animation *, double) = &animation_reactor_PurpleWithGreenFillingForward;
-  first_animation.function = first_animation_fuction;
-
-  animations[0] = first_animation;
-
-  animations_count = 1;
+  animations[++animations_count - 1] = reactor1;
 }
 
 void loop() {
   animation_loop();
-  delay(10);
+  delay(50);
 }
 
 void animation_loop() {
+  Serial.println("animation_loop");
   for (uint8_t i = 0; i < animations_count; i++) {
+    Serial.print(" - ");
     Animation *a = &animations[i];
     void (*function)(Animation *, double) = (*a).function;
     function(a, millis());
@@ -76,20 +74,91 @@ void animation_loop() {
   show(_weapon);
 }
 
-void animation_reactor_PurpleWithGreenFillingForward(Animation *animation, double current_ms) {
-  animate_backgroundColorWithColorFillingForward(_reactor, PURPLE_COLOR, GREEN_COLOR,
-                                                 animation, current_ms);
+void animation_reactor1(Animation *animation, double current_ms) {
+  double const animation_length_ms = 20000.0;
+  double percentage_complete = animation_boilerplate(animation, current_ms, animation_length_ms);
+
+  // This animation is two keyframes, each of which is its own animation.
+  // First keyframe is purple being filled by green.
+  // Second keyframe is green being filled by purple.
+  
+  static Animation purple_filling_with_green;
+  static Animation green_filling_with_purple;
+
+  // New animation?
+  if (percentage_complete == 0.0) {
+    purple_filling_with_green.userInfo = 0.0;
+    green_filling_with_purple.userInfo = 0.0;
+    
+    // We will start these up when appropriate.
+    purple_filling_with_green.isFinished = true;
+    green_filling_with_purple.isFinished = true;
+    
+    void (*purple_filling_with_green_fn)(Animation *, double) = &animation_PurpleWithGreenFillingForward;
+    void (*green_filling_with_purple_fn)(Animation *, double) = &animation_GreenWithPurpleFillingForward;
+
+    purple_filling_with_green.function = purple_filling_with_green_fn;
+    green_filling_with_purple.function = green_filling_with_purple_fn;
+    
+    animations[++animations_count - 1] = purple_filling_with_green;
+    animations[++animations_count - 1] = green_filling_with_purple;
+    
+    // Serial.println((animations[1]));
+    // Serial.println((animations[2]));
+    // Serial.println();
+  }
+  // Expired animation?
+  else if (percentage_complete >= 100.0) {
+    animation->userInfo = 0.0;
+    animation->isFinished = true;
+    animations_count -= 2;
+  }
+  
+  Serial.print("  ");
+  Serial.print(percentage_complete);
+  
+  if (percentage_complete < 50.0) {
+    Serial.println("  < 50");
+    // Enable purple being filled by green.
+    purple_filling_with_green.isFinished = false;
+    // Disable green being filled by purple.
+    green_filling_with_purple.isFinished = true;
+  } else {
+    Serial.println("  !< 50");
+    // Disable purple being filled by green.
+    purple_filling_with_green.isFinished = true;
+    // Enable green being filled by purple.
+    green_filling_with_purple.isFinished = false;
+  }
 }
 
+void animation_PurpleWithGreenFillingForward(Animation *animation, double current_ms) {
+  animate_backgroundColorWithColorFillingForward(_reactor, BLUE_COLOR, BLUE_COLOR,
+                                                 animation, current_ms);
+  // animate_backgroundColorWithColorFillingForward(_reactor, PURPLE_COLOR, GREEN_COLOR,
+  //                                                animation, current_ms);
+}
+
+void animation_GreenWithPurpleFillingForward(Animation *animation, double current_ms) {
+  animate_backgroundColorWithColorFillingForward(_reactor, RED_COLOR, RED_COLOR,
+                                                 animation, current_ms);
+  // animate_backgroundColorWithColorFillingForward(_reactor, GREEN_COLOR, PURPLE_COLOR,
+  //                                               animation, current_ms);
+}
 
 void animate_backgroundColorWithColorFillingForward(Adafruit_NeoPixel pixels, uint16_t back, uint16_t fill,
                                                     Animation *animation, double current_ms) {
   // Animation time in milliseconds.
-  double const animation_length_ms = 2500.0;
+  double const animation_length_ms = 10000.0;
   
   if (animation->isFinished) {
-    // return;
+    animation->userInfo = 0.0;
+    Serial.print("  finished ");
+    Serial.println(back);
+    return;
   }
+  Serial.println("  -");
+
 
   double percentage_complete = animation_boilerplate(animation, current_ms, animation_length_ms);
   
@@ -104,7 +173,7 @@ void animate_backgroundColorWithColorFillingForward(Adafruit_NeoPixel pixels, ui
   // Second keyframe is first pixel colored.
   // Third keyframe is second pixel colored.
   // Etc.
-  double numberOfKeyframes = 1 + pixels.numPixels();
+  double const numberOfKeyframes = 1 + pixels.numPixels();
   
   // This animation fills in LEDs from left to right. Choose the furthest right pixel.
   int right_pixel = percentage_complete / (100.0 / numberOfKeyframes);
@@ -125,7 +194,7 @@ double animation_boilerplate(Animation *animation, double current_ms, double ani
     animation->userInfo = end_time_ms;
   }
   // Expired animation?
-  else if (end_time_ms < current_ms) {
+  else if (end_time_ms <= current_ms) {
     // Reset this animation for next time.
     animation->userInfo = 0.0;
     // Mark that we're done.
