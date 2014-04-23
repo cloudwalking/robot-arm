@@ -42,7 +42,7 @@ void setup() {
   _weapon.begin();
   
   _reactor.setBrightness(REACTOR_LED_DEFAULT_BRIGHTNESS);
-  _weapon.setBrightness(WEAPON_LED_DEFAULT_BRIGHTNESS);
+  _weapon.setBrightness(10);
 
   static Animation reactor1 = animations_newAnimation();
   reactor1.animationLength = 1600.0;
@@ -102,11 +102,6 @@ void animation_reactor1(Animation *animation, double current_ms) {
     animations_addAnimation(&purple_filling_with_green);
     animations_addAnimation(&green_filling_with_purple);
   }
-  // Expired animation?
-  else if (percentage_complete >= 100.0) {
-    animation->userInfo = 0.0;
-    animation->isFinished = true;
-  }
   
   if (percentage_complete < 50.0) {
     // Enable purple being filled by green.
@@ -122,7 +117,10 @@ void animation_reactor1(Animation *animation, double current_ms) {
 }
 
 void animation_weapon1(Animation *animation, double current_ms) {
-  animate_backgroundColorWithColorFillingForward(_reactor, RED_COLOR, ORANGE_COLOR,
+  // Loop forever
+  animation->isFinished = false;
+
+  animate_backgroundColorWithColorFillingForward(_weapon, RED_COLOR, TEAL_COLOR,
                                                  animation, current_ms);
 }
 
@@ -144,7 +142,6 @@ void animation_reactor_GreenWithPurpleFillingForward(Animation *animation, doubl
 void animate_backgroundColorWithColorFillingForward(Adafruit_NeoPixel pixels, uint16_t back, uint16_t fill,
                                                     Animation *animation, double current_ms) {
   if (animation->isFinished) {
-    animation->userInfo = 0.0;
     return;
   }
 
