@@ -5,9 +5,9 @@
 
 #define REACTOR_LED_COUNT 3
 #define REACTOR_LED_DATA_PIN 6
-#define REACTOR_LED_DEFAULT_BRIGHTNESS 60
+#define REACTOR_LED_DEFAULT_BRIGHTNESS 40
 
-#define WEAPON_LED_COUNT 4
+#define WEAPON_LED_COUNT 5
 #define WEAPON_LED_DATA_PIN 5
 #define WEAPON_LED_DEFAULT_BRIGHTNESS 20
 
@@ -19,6 +19,7 @@
 #define BLUE_COLOR 256
 #define PURPLE_COLOR 329
 #define WHITE_COLOR -1
+#define OFF_COLOR -2
 
 // Chance for white noise, 1/X
 #define WHITE_NOISE_FREQUENCY 7
@@ -42,7 +43,7 @@ void setup() {
   _weapon.begin();
   
   _reactor.setBrightness(REACTOR_LED_DEFAULT_BRIGHTNESS);
-  _weapon.setBrightness(10);
+  _weapon.setBrightness(WEAPON_LED_DEFAULT_BRIGHTNESS);
 
   static Animation reactor1 = animations_newAnimation();
   reactor1.animationDuration = 400.0;
@@ -51,7 +52,7 @@ void setup() {
   animations_addAnimation(&reactor1);
   
   static Animation weapon1 = animations_newAnimation();
-  weapon1.animationDuration = 1000.0;
+  weapon1.animationDuration = 6000.0;
   weapon1.function = &animation_weapon1;
   
   animations_addAnimation(&weapon1);
@@ -120,7 +121,7 @@ void animation_weapon1(Animation *animation, double current_ms) {
   // Loop forever
   animation->isFinished = false;
 
-  animate_backgroundColorWithColorFillingForward(_weapon, RED_COLOR, TEAL_COLOR,
+  animate_backgroundColorWithColorFillingForward(_weapon, OFF_COLOR, RED_COLOR,
                                                  animation, current_ms);
 }
 
@@ -293,8 +294,11 @@ void show(Adafruit_NeoPixel pixels) {
 // Color 0 from 383
 // -1 is white
 uint32_t color(int16_t color)  {
-  if (color < 0) {
+  if (color == -1) {
     return _pixels.Color(255, 255, 255);
+  }
+  else if (color == -2) {
+    return 0;
   }
 
   byte r, g, b;
