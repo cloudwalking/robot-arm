@@ -44,21 +44,25 @@ void setup() {
   _reactor.setBrightness(REACTOR_LED_DEFAULT_BRIGHTNESS);
   _weapon.setBrightness(WEAPON_LED_DEFAULT_BRIGHTNESS);
 
-  static Animation reactor1;
-  reactor1.userInfo = 0.0;
-  reactor1.isFinished = false;
-  void (*reactor1_fn)(Animation *, double) = &animation_reactor1;
-  reactor1.function = reactor1_fn;
+  static Animation reactor1 = animations_newAnimation();
+  reactor1.animationLength = 1600.0;
+  reactor1.function = &animation_reactor1;
 
-  animations[++animations_count - 1] = &reactor1;
+  animations_addAnimation(&reactor1);
+  
+  static Animation weapon1 = animations_newAnimation();
+  weapon1.animationLength = 1000.0;
+  weapon1.function = &animation_weapon1;
+  
+  animations_addAnimation(&weapon1);
 }
 
 void loop() {
-  animation_loop();
-  delay(50);
+  animations_loop();
+  delay(10);
 }
 
-void animation_loop() {
+void animations_loop() {
   for (uint8_t i = 0; i < animations_count; i++) {
     Animation *a = animations[i];
     void (*function)(Animation *, double) = (*a).function;
@@ -68,19 +72,20 @@ void animation_loop() {
   show(_weapon);
 }
 
+// This animation is two keyframes, each of which is its own animation.
+// First keyframe is purple being filled by green.
+// Second keyframe is green being filled by purple.
 void animation_reactor1(Animation *animation, double current_ms) {
-  double const animation_length_ms = 800.0;
-  double percentage_complete = animation_boilerplate(animation, current_ms, animation_length_ms);
-
-  // This animation is two keyframes, each of which is its own animation.
-  // First keyframe is purple being filled by green.
-  // Second keyframe is green being filled by purple.
+  double percentage_complete = animation_boilerplate(animation, current_ms);
   
   static Animation purple_filling_with_green;
   static Animation green_filling_with_purple;
 
   // New animation?
   if (percentage_complete == 0.0) {
+    purple_filling_with_green.animationLength = animation->animationLength / 2;
+    green_filling_with_purple.animationLength = animation->animationLength / 2;
+    
     purple_filling_with_green.userInfo = 0.0;
     green_filling_with_purple.userInfo = 0.0;
     
@@ -88,20 +93,19 @@ void animation_reactor1(Animation *animation, double current_ms) {
     purple_filling_with_green.isFinished = true;
     green_filling_with_purple.isFinished = true;
     
-    void (*purple_filling_with_green_fn)(Animation *, double) = &animation_PurpleWithGreenFillingForward;
-    void (*green_filling_with_purple_fn)(Animation *, double) = &animation_GreenWithPurpleFillingForward;
+    void (*purple_filling_with_green_fn)(Animation *, double) = &animation_reactor_PurpleWithGreenFillingForward;
+    void (*green_filling_with_purple_fn)(Animation *, double) = &animation_reactor_GreenWithPurpleFillingForward;
 
     purple_filling_with_green.function = purple_filling_with_green_fn;
     green_filling_with_purple.function = green_filling_with_purple_fn;
     
-    animations[++animations_count - 1] = &purple_filling_with_green;
-    animations[++animations_count - 1] = &green_filling_with_purple;
+    animations_addAnimation(&purple_filling_with_green);
+    animations_addAnimation(&green_filling_with_purple);
   }
   // Expired animation?
   else if (percentage_complete >= 100.0) {
     animation->userInfo = 0.0;
     animation->isFinished = true;
-    animations_count -= 2;
   }
   
   if (percentage_complete < 50.0) {
@@ -117,27 +121,34 @@ void animation_reactor1(Animation *animation, double current_ms) {
   }
 }
 
-void animation_PurpleWithGreenFillingForward(Animation *animation, double current_ms) {
+void animation_weapon1(Animation *animation, double current_ms) {
+  animate_backgroundColorWithColorFillingForward(_reactor, RED_COLOR, ORANGE_COLOR,
+                                                 animation, current_ms);
+}
+
+void animation_reactor_PurpleWithGreenFillingForward(Animation *animation, double current_ms) {
   animate_backgroundColorWithColorFillingForward(_reactor, PURPLE_COLOR, GREEN_COLOR,
                                                  animation, current_ms);
 }
 
-void animation_GreenWithPurpleFillingForward(Animation *animation, double current_ms) {
+void animation_reactor_GreenWithPurpleFillingForward(Animation *animation, double current_ms) {
   animate_backgroundColorWithColorFillingForward(_reactor, GREEN_COLOR, PURPLE_COLOR,
                                                 animation, current_ms);
 }
 
+// This is an animation where the background is filled with a solid color, and a second color animates in across it.
+// First keyframe is all background color.
+// Second keyframe is first pixel colored.
+// Third keyframe is second pixel colored.
+// Etc.
 void animate_backgroundColorWithColorFillingForward(Adafruit_NeoPixel pixels, uint16_t back, uint16_t fill,
                                                     Animation *animation, double current_ms) {
-  // Animation time in milliseconds.
-  double const animation_length_ms = 400.0;
-  
   if (animation->isFinished) {
     animation->userInfo = 0.0;
     return;
   }
 
-  double percentage_complete = animation_boilerplate(animation, current_ms, animation_length_ms);
+  double percentage_complete = animation_boilerplate(animation, current_ms);
   
   // Now push some pixels!
 
@@ -161,8 +172,28 @@ void animate_backgroundColorWithColorFillingForward(Adafruit_NeoPixel pixels, ui
   }
 }
 
-// Returns the animation percentage point.
-double animation_boilerplate(Animation *animation, double current_ms, double animation_length_ms) {
+//////////////////////////////
+//////////////////////////////
+// Animation helper functions
+//////////////////////////////
+//////////////////////////////
+
+// Creates new animation struct with the given animation function.
+// For some reason I can't accept this function pointer as an argument.
+// Animation animations_newAnimation(void (*animation_function)(Animation *, double)) {
+Animation animations_newAnimation() {
+  Animation a;
+  a.userInfo = 0.0;
+  a.isFinished = false;
+  // a.function = animation_function;
+
+  return a;
+}
+
+// Run this in the beginning of all animations.
+// Returns the animation percentage given the current time.
+double animation_boilerplate(Animation *animation, double current_ms) {
+  double const animation_length_ms = animation->animationLength;
   double end_time_ms = animation->userInfo;
 
   // Is this the first run?
@@ -183,6 +214,19 @@ double animation_boilerplate(Animation *animation, double current_ms, double ani
   double percentage_complete = 100 - percentage_remaining;
 
   return percentage_complete;
+}
+
+// Adds an animation. Does nothing if the animations is already on the animation stack.
+void animations_addAnimation(Animation *a) {
+  for (uint8_t i = 0; i < animations_count; i++) {
+    Animation *x = animations[i];
+    if (a == x) {
+      // Animation is already stored.
+      return;
+    }
+  }
+
+  animations[++animations_count - 1] = a;
 }
 
 /////////////////////////////////////////////////////
