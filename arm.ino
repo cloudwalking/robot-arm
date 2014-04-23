@@ -9,7 +9,7 @@
 
 #define WEAPON_LED_COUNT 4
 #define WEAPON_LED_DATA_PIN 5
-#define WEAPON_LED_DEFAULT_BRIGHTNESS 60
+#define WEAPON_LED_DEFAULT_BRIGHTNESS 20
 
 #define RED_COLOR 0
 #define ORANGE_COLOR 32
@@ -45,13 +45,13 @@ void setup() {
   _weapon.setBrightness(10);
 
   static Animation reactor1 = animations_newAnimation();
-  reactor1.animationLength = 1600.0;
+  reactor1.animationDuration = 400.0;
   reactor1.function = &animation_reactor1;
 
   animations_addAnimation(&reactor1);
   
   static Animation weapon1 = animations_newAnimation();
-  weapon1.animationLength = 1000.0;
+  weapon1.animationDuration = 1000.0;
   weapon1.function = &animation_weapon1;
   
   animations_addAnimation(&weapon1);
@@ -59,7 +59,7 @@ void setup() {
 
 void loop() {
   animations_loop();
-  delay(10);
+  delay(20);
 }
 
 void animations_loop() {
@@ -83,8 +83,8 @@ void animation_reactor1(Animation *animation, double current_ms) {
 
   // New animation?
   if (percentage_complete == 0.0) {
-    purple_filling_with_green.animationLength = animation->animationLength / 2;
-    green_filling_with_purple.animationLength = animation->animationLength / 2;
+    purple_filling_with_green.animationDuration = animation->animationDuration / 2;
+    green_filling_with_purple.animationDuration = animation->animationDuration / 2;
     
     purple_filling_with_green.userInfo = 0.0;
     green_filling_with_purple.userInfo = 0.0;
@@ -127,11 +127,15 @@ void animation_weapon1(Animation *animation, double current_ms) {
 void animation_reactor_PurpleWithGreenFillingForward(Animation *animation, double current_ms) {
   animate_backgroundColorWithColorFillingForward(_reactor, PURPLE_COLOR, GREEN_COLOR,
                                                  animation, current_ms);
+  whiteNoise(_reactor, 80, (rand() % 3) + 1);
+  whiteNoise(_reactor, 100, (rand() % 3) + 1);
 }
 
 void animation_reactor_GreenWithPurpleFillingForward(Animation *animation, double current_ms) {
   animate_backgroundColorWithColorFillingForward(_reactor, GREEN_COLOR, PURPLE_COLOR,
                                                 animation, current_ms);
+  whiteNoise(_reactor, 80, (rand() % 3) + 1);
+  whiteNoise(_reactor, 100, (rand() % 3) + 1);
 }
 
 // This is an animation where the background is filled with a solid color, and a second color animates in across it.
@@ -148,11 +152,11 @@ void animate_backgroundColorWithColorFillingForward(Adafruit_NeoPixel pixels, ui
   double percentage_complete = animation_boilerplate(animation, current_ms);
   
   // Now push some pixels!
-
+  
   // Is this the first run?
-  if (percentage_complete == 0.0) {
-    full_color(pixels, back);
-  }
+  // if (percentage_complete == 0.0) {
+  //   full_color(pixels, back);
+  // }
   
   // First keyframe is all background color.
   // Second keyframe is first pixel colored.
@@ -166,6 +170,23 @@ void animate_backgroundColorWithColorFillingForward(Adafruit_NeoPixel pixels, ui
   // Fill in everything up to the right.
   for (int16_t i = 0; i < right_pixel; i++) {
     pixels.setPixelColor(i, color(fill));
+  }
+  
+  // Fill in everything else.
+  for (uint16_t i = right_pixel; i < pixels.numPixels(); i++) {
+    pixels.setPixelColor(i, color(back));
+  }
+}
+
+void whiteNoise(Adafruit_NeoPixel pixels, uint16_t chance, uint16_t number_to_light) {
+  // srand(millis());
+  if (rand() % chance == 0) {
+    for (uint16_t i = 0; i < number_to_light; i++) {
+      uint16_t pixel = rand() % pixels.numPixels();
+      pixels.setPixelColor(pixel, color(WHITE_COLOR));
+      Serial.println("LIGHTING UP");
+      Serial.println();
+    }
   }
 }
 
@@ -190,7 +211,7 @@ Animation animations_newAnimation() {
 // Run this in the beginning of all animations.
 // Returns the animation percentage given the current time.
 double animation_boilerplate(Animation *animation, double current_ms) {
-  double const animation_length_ms = animation->animationLength;
+  double const animation_length_ms = animation->animationDuration;
   double end_time_ms = animation->userInfo;
 
   // Is this the first run?

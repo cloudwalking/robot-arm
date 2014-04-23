@@ -5,7 +5,7 @@ struct Animation {
   // Additional info to hold. Currently only used to hold the animation finish time.
   double userInfo;
   // Length of this animation.
-  double animationLength;
+  double animationDuration;
   // Set true if this animation has finished.
   bool isFinished;
 };
