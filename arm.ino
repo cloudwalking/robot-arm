@@ -52,7 +52,7 @@ void setup() {
   animations_addAnimation(&reactor1);
 
   static Animation reactor2 = animations_newAnimation();
-  reactor2.animationDuration = 40.0;
+  reactor2.animationDuration = 500.0;
   reactor2.function = &animation_reactor2;
   reactor2.zIndex = 10;
 
@@ -92,12 +92,12 @@ void animation_reactor1(Animation *animation, double current_ms) {
 
   // New animation?
   if (percentage_complete == 0.0) {
+    purple_filling_with_green = animations_newAnimation();
+    green_filling_with_purple = animations_newAnimation();
+
     purple_filling_with_green.animationDuration = animation->animationDuration / 2;
     green_filling_with_purple.animationDuration = animation->animationDuration / 2;
-    
-    purple_filling_with_green.endTime = 0.0;
-    green_filling_with_purple.endTime = 0.0;
-    
+
     // We will start these up when appropriate.
     purple_filling_with_green.isFinished = true;
     green_filling_with_purple.isFinished = true;
@@ -125,12 +125,37 @@ void animation_reactor1(Animation *animation, double current_ms) {
   }
 }
 
+// This is the "short circuit" white noise on the reactor strip.
+// Also periodically applies to the weapon strip too.
 void animation_reactor2(Animation *animation, double current_ms) {
   double percentage_complete = animation_boilerplate(animation, current_ms);
 
-  if (percentage_complete == 0.0) {
-    uint8_t leds = (rand() % 3) + 1;
-    whiteNoise(_reactor, 15, leds);
+  uint8_t leds = (rand() % 2) + 2; // 2 or 3 LEDs.
+  bool proc = whiteNoise(_reactor, 30, leds);
+  animation->userInfo += proc;
+  
+  // White noise is random. Each time it procs, we increment our userInfo counter.
+  // Once a threshold is met, we light up the other strip too.
+  double threshold = 2.0;
+  
+  // BOOM light up everything on the contraption.
+  static Animation arduino_animation;
+  if (animation->userInfo >= threshold) {
+    animation->userInfo = 0.0;
+
+    // Other strip
+    whiteNoise(_weapon, 1, 3);
+    
+    // Arduino LEDs
+    arduino_animation = animations_newAnimation();
+    arduino_animation.animationDuration = 200.0;
+    arduino_animation.function = &animate_arduino_LEDs;
+    animations_addAnimation(&arduino_animation);
+  }
+  
+  // Last run? Reset our user info.
+  if (percentage_complete >= 100.0) {
+    animation->userInfo = 0.0;
   }
 }
 
@@ -138,7 +163,7 @@ void animation_weapon1(Animation *animation, double current_ms) {
   // Loop forever
   animation->isFinished = false;
 
-  animate_backgroundColorWithColorFillingForward(_weapon, OFF_COLOR, RED_COLOR,
+  animate_backgroundColorWithColorFillingForward(_weapon, OFF_COLOR, BLUE_COLOR,
                                                  animation, current_ms);
 }
 
@@ -167,11 +192,6 @@ void animate_backgroundColorWithColorFillingForward(Adafruit_NeoPixel pixels, ui
   
   // Now push some pixels!
   
-  // Is this the first run?
-  // if (percentage_complete == 0.0) {
-  //   full_color(pixels, back);
-  // }
-  
   // First keyframe is all background color.
   // Second keyframe is first pixel colored.
   // Third keyframe is second pixel colored.
@@ -192,16 +212,38 @@ void animate_backgroundColorWithColorFillingForward(Adafruit_NeoPixel pixels, ui
   }
 }
 
-void whiteNoise(Adafruit_NeoPixel pixels, uint16_t chance, uint16_t number_to_light) {
-  // srand(millis());
+// Turns on the arduino LEDs for the duration of the animation.
+void animate_arduino_LEDs(Animation *animation, double current_ms) {
+  if (animation->isFinished) {
+    return;
+  }
+
+  double percentage_complete = animation_boilerplate(animation, current_ms);
+  
+  if (percentage_complete == 0.0) {
+    RXLED1;
+    TXLED1;
+  } else if (percentage_complete >= 70) {
+    RXLED0;
+  }
+  
+  if (percentage_complete >= 100) {
+    RXLED0;
+    TXLED0;
+  }
+}
+
+// Lights up a specific number of pixels. Chance to occure is 1/chance.
+// Returns true if chance occurs.
+bool whiteNoise(Adafruit_NeoPixel pixels, uint16_t chance, uint16_t number_to_light) {
   if (rand() % chance == 0) {
     for (uint16_t i = 0; i < number_to_light; i++) {
       uint16_t pixel = rand() % pixels.numPixels();
       pixels.setPixelColor(pixel, color(WHITE_COLOR));
-      Serial.println("LIGHTING UP");
-      Serial.println();
     }
+    return true;
   }
+  return false;
 }
 
 //////////////////////////////
@@ -219,6 +261,7 @@ Animation animations_newAnimation() {
   a.isFinished = false;
   // a.function = animation_function;
   a.zIndex = 1;
+  a.userInfo = 0.0;
 
   return a;
 }
