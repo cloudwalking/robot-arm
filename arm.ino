@@ -50,7 +50,14 @@ void setup() {
   reactor1.function = &animation_reactor1;
 
   animations_addAnimation(&reactor1);
-  
+
+  static Animation reactor2 = animations_newAnimation();
+  reactor2.animationDuration = 40.0;
+  reactor2.function = &animation_reactor2;
+  reactor2.zIndex = 10;
+
+  animations_addAnimation(&reactor2);
+
   static Animation weapon1 = animations_newAnimation();
   weapon1.animationDuration = 6000.0;
   weapon1.function = &animation_weapon1;
@@ -64,9 +71,10 @@ void loop() {
 }
 
 void animations_loop() {
+  animations_sortAnimations();
   for (uint8_t i = 0; i < animations_count; i++) {
     Animation *a = animations[i];
-    void (*function)(Animation *, double) = (*a).function;
+    void (*function)(Animation *, double) = a->function;
     function(a, millis());
   }
   show(_reactor);
@@ -87,8 +95,8 @@ void animation_reactor1(Animation *animation, double current_ms) {
     purple_filling_with_green.animationDuration = animation->animationDuration / 2;
     green_filling_with_purple.animationDuration = animation->animationDuration / 2;
     
-    purple_filling_with_green.userInfo = 0.0;
-    green_filling_with_purple.userInfo = 0.0;
+    purple_filling_with_green.endTime = 0.0;
+    green_filling_with_purple.endTime = 0.0;
     
     // We will start these up when appropriate.
     purple_filling_with_green.isFinished = true;
@@ -117,6 +125,15 @@ void animation_reactor1(Animation *animation, double current_ms) {
   }
 }
 
+void animation_reactor2(Animation *animation, double current_ms) {
+  double percentage_complete = animation_boilerplate(animation, current_ms);
+
+  if (percentage_complete == 0.0) {
+    uint8_t leds = (rand() % 3) + 1;
+    whiteNoise(_reactor, 15, leds);
+  }
+}
+
 void animation_weapon1(Animation *animation, double current_ms) {
   // Loop forever
   animation->isFinished = false;
@@ -128,15 +145,11 @@ void animation_weapon1(Animation *animation, double current_ms) {
 void animation_reactor_PurpleWithGreenFillingForward(Animation *animation, double current_ms) {
   animate_backgroundColorWithColorFillingForward(_reactor, PURPLE_COLOR, GREEN_COLOR,
                                                  animation, current_ms);
-  whiteNoise(_reactor, 80, (rand() % 3) + 1);
-  whiteNoise(_reactor, 100, (rand() % 3) + 1);
 }
 
 void animation_reactor_GreenWithPurpleFillingForward(Animation *animation, double current_ms) {
   animate_backgroundColorWithColorFillingForward(_reactor, GREEN_COLOR, PURPLE_COLOR,
                                                 animation, current_ms);
-  whiteNoise(_reactor, 80, (rand() % 3) + 1);
-  whiteNoise(_reactor, 100, (rand() % 3) + 1);
 }
 
 // This is an animation where the background is filled with a solid color, and a second color animates in across it.
@@ -202,9 +215,10 @@ void whiteNoise(Adafruit_NeoPixel pixels, uint16_t chance, uint16_t number_to_li
 // Animation animations_newAnimation(void (*animation_function)(Animation *, double)) {
 Animation animations_newAnimation() {
   Animation a;
-  a.userInfo = 0.0;
+  a.endTime = 0.0;
   a.isFinished = false;
   // a.function = animation_function;
+  a.zIndex = 1;
 
   return a;
 }
@@ -213,17 +227,17 @@ Animation animations_newAnimation() {
 // Returns the animation percentage given the current time.
 double animation_boilerplate(Animation *animation, double current_ms) {
   double const animation_length_ms = animation->animationDuration;
-  double end_time_ms = animation->userInfo;
+  double end_time_ms = animation->endTime;
 
   // Is this the first run?
   if (end_time_ms == 0.0) {
     end_time_ms = current_ms + animation_length_ms;
-    animation->userInfo = end_time_ms;
+    animation->endTime = end_time_ms;
   }
   // Expired animation?
   else if (end_time_ms <= current_ms) {
     // Reset this animation for next time.
-    animation->userInfo = 0.0;
+    animation->endTime = 0.0;
     // Mark that we're done.
     animation->isFinished = true;
   }
@@ -237,6 +251,7 @@ double animation_boilerplate(Animation *animation, double current_ms) {
 
 // Adds an animation. Does nothing if the animations is already on the animation stack.
 void animations_addAnimation(Animation *a) {
+  // Ensure this animation is not already stored in the animation list.
   for (uint8_t i = 0; i < animations_count; i++) {
     Animation *x = animations[i];
     if (a == x) {
@@ -246,6 +261,26 @@ void animations_addAnimation(Animation *a) {
   }
 
   animations[++animations_count - 1] = a;
+  
+  // Don't sort the animations here or we might execute an animation twice.
+  // This could have bad side effects eg if the animation is resetting this loop.
+  // Instead sort the animations at the beginning of the animation loop.
+}
+
+// Sort the animations by z-index, lower index comes first.
+void animations_sortAnimations() {
+  if (animations_count <= 0) return;
+  
+  // Bubble sort!
+  for (uint8_t x = 0; x < animations_count - 1; x++) {
+    for (uint8_t y = 0; y < animations_count - x - 1; y++) {
+      if (animations[y]->zIndex > animations[y + 1]->zIndex) {
+        Animation *swap = animations[y];
+        animations[y] = animations[y + 1];
+        animations[y + 1] = swap;
+      }
+    }
+  }
 }
 
 /////////////////////////////////////////////////////

@@ -8,5 +8,10 @@ struct Animation {
   double animationDuration;
   // Set true if this animation has finished.
   bool isFinished;
+  // Used for sorting. Higher z-index is sorted above (after) lower z-index animations.
+  uint8_t zIndex;
+
+  // For internal use
+  double endTime;
 };
 typedef struct Animation Animation;
