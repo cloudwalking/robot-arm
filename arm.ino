@@ -148,7 +148,7 @@ void animation_reactor2(Animation *animation, double current_ms) {
     
     // Arduino LEDs
     arduino_animation = animations_newAnimation();
-    arduino_animation.animationDuration = 200.0;
+    arduino_animation.animationDuration = 50.0;
     arduino_animation.function = &animate_arduino_LEDs;
     animations_addAnimation(&arduino_animation);
   }
@@ -221,14 +221,9 @@ void animate_arduino_LEDs(Animation *animation, double current_ms) {
   double percentage_complete = animation_boilerplate(animation, current_ms);
   
   if (percentage_complete == 0.0) {
-    RXLED1;
     TXLED1;
-  } else if (percentage_complete >= 70) {
-    RXLED0;
   }
-  
-  if (percentage_complete >= 100) {
-    RXLED0;
+  else if (percentage_complete >= 100) {
     TXLED0;
   }
 }
