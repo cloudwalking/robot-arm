@@ -59,7 +59,7 @@ void setup() {
   animations_addAnimation(&reactor2);
 
   static Animation weapon1 = animations_newAnimation();
-  weapon1.animationDuration = 6000.0;
+  weapon1.animationDuration = 12000.0;
   weapon1.function = &animation_weapon1;
   
   animations_addAnimation(&weapon1);
@@ -145,6 +145,7 @@ void animation_reactor2(Animation *animation, double current_ms) {
 
     // Other strip
     whiteNoise(_weapon, 1, 3);
+    whiteNoise(_weapon, 50, 3);
     
     // Arduino LEDs
     arduino_animation = animations_newAnimation();
