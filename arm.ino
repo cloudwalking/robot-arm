@@ -1,5 +1,6 @@
 #include <Adafruit_NeoPixel.h>
 #include <stdlib.h>
+#include <math.h>
 
 #include "Animation.h"
 
@@ -23,6 +24,12 @@
 
 // Chance for white noise, 1/X
 #define WHITE_NOISE_FREQUENCY 7
+
+// Useful macros
+
+#define first_run(percentage_complete) percentage_complete == 0.0
+
+//
 
 #define ANIMATION_ARRAY_SIZE 10
 Animation* animations[ANIMATION_ARRAY_SIZE];
@@ -49,20 +56,26 @@ void setup() {
   reactor1.animationDuration = 400.0;
   reactor1.function = &animation_reactor1;
 
-  animations_addAnimation(&reactor1);
+  // animations_addAnimation(&reactor1);
 
   static Animation reactor2 = animations_newAnimation();
   reactor2.animationDuration = 500.0;
   reactor2.function = &animation_reactor2;
   reactor2.zIndex = 10;
 
-  animations_addAnimation(&reactor2);
+  // animations_addAnimation(&reactor2);
 
   static Animation weapon1 = animations_newAnimation();
   weapon1.animationDuration = 12000.0;
   weapon1.function = &animation_weapon1;
   
-  animations_addAnimation(&weapon1);
+  // animations_addAnimation(&weapon1);
+
+  static Animation charging = animations_newAnimation();
+  charging.animationDuration = 400.0;
+  charging.function = &animation_chargingUp;
+
+  animations_addAnimation(&charging);
 }
 
 void loop() {
@@ -166,6 +179,46 @@ void animation_weapon1(Animation *animation, double current_ms) {
 
   animate_backgroundColorWithColorFillingForward(_weapon, OFF_COLOR, BLUE_COLOR,
                                                  animation, current_ms);
+}
+
+/*
+o . x X x . o o
+o o . x X x . o
+o o o . x X x .
+o o o o . x X x
+o o o o o . x X
+*/
+
+void animation_chargingUp(Animation *animation, double current_ms) {
+  int primary = YELLOW_COLOR;
+  int secondary = ORANGE_COLOR;
+  int tertiary = RED_COLOR;
+
+  double percentage_complete = animation_boilerplate(animation, current_ms);
+
+  // Try to turn the brightness down.
+  if (first_run(percentage_complete)) {
+  }
+
+  uint8_t const keyframes = _weapon.numPixels() + 4;
+  int leading_pixel = percentage_complete / (100.0 / keyframes);
+  
+  double percent = (percentage_complete / (100.0 / keyframes)) - leading_pixel;
+  percent = percent * 100;
+  
+  double c = map(percent, 0, 100, tertiary, secondary);
+  _weapon.setPixelColor(leading_pixel, color(c));
+  
+  c = map(percent, 0, 100, secondary, primary);
+  _weapon.setPixelColor(leading_pixel - 1, color(c));
+  
+  _weapon.setPixelColor(leading_pixel - 2, color(primary));
+  
+  c = map(percent, 0, 100, primary, secondary);
+  _weapon.setPixelColor(leading_pixel - 3, color(c));
+  
+  c = map(percent, 0, 100, secondary, tertiary);
+  _weapon.setPixelColor(leading_pixel - 4, color(c));
 }
 
 void animation_reactor_PurpleWithGreenFillingForward(Animation *animation, double current_ms) {
