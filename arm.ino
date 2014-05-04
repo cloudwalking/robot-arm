@@ -191,9 +191,11 @@ o o o o o . x X
 */
 
 void animation_chargingUp(Animation *animation, double current_ms) {
-  int primary = GREEN_COLOR;
-  int secondary = TEAL_COLOR;
-  int tertiary = BLUE_COLOR;
+  int const primary = GREEN_COLOR;
+  int const secondary = TEAL_COLOR;
+  int const tertiary = BLUE_COLOR;
+  
+  double const speed_delta = 50.0;
 
   double percentage_complete = animation_boilerplate(animation, current_ms);
   
@@ -201,18 +203,17 @@ void animation_chargingUp(Animation *animation, double current_ms) {
   if (last_run(percentage_complete)) {
     if (animation->userInfo == 0.0) {
       // First time.
-      animation->userInfo = 100.0;
+      animation->userInfo = speed_delta;
     }
     
     animation->duration += animation->userInfo;
-
-    Serial.println(animation->duration);
     
-    if (animation->duration > 1000.0 * 4.0) {
-      animation->userInfo = -100.0;
+    int const seconds = 1000 * 3;
+    if (animation->duration > seconds) {
+      animation->userInfo = -1 * speed_delta;
     }
-    if (animation->duration < 10) {
-      animation->userInfo = 100.0;
+    if (animation->duration < speed_delta) {
+      animation->userInfo = speed_delta;
     }
   }
 
