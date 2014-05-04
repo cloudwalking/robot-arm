@@ -28,6 +28,7 @@
 // Useful macros
 
 #define first_run(percentage_complete) percentage_complete == 0.0
+#define last_run(percentage_complete) percentage_complete >= 100.0
 
 //
 
@@ -53,26 +54,26 @@ void setup() {
   _weapon.setBrightness(WEAPON_LED_DEFAULT_BRIGHTNESS);
 
   static Animation reactor1 = animations_newAnimation();
-  reactor1.animationDuration = 400.0;
+  reactor1.duration = 400.0;
   reactor1.function = &animation_reactor1;
 
   // animations_addAnimation(&reactor1);
 
   static Animation reactor2 = animations_newAnimation();
-  reactor2.animationDuration = 500.0;
+  reactor2.duration = 500.0;
   reactor2.function = &animation_reactor2;
   reactor2.zIndex = 10;
 
   // animations_addAnimation(&reactor2);
 
   static Animation weapon1 = animations_newAnimation();
-  weapon1.animationDuration = 12000.0;
+  weapon1.duration = 12000.0;
   weapon1.function = &animation_weapon1;
   
   // animations_addAnimation(&weapon1);
 
   static Animation charging = animations_newAnimation();
-  charging.animationDuration = 400.0;
+  charging.duration = 100.0;
   charging.function = &animation_chargingUp;
 
   animations_addAnimation(&charging);
@@ -108,8 +109,8 @@ void animation_reactor1(Animation *animation, double current_ms) {
     purple_filling_with_green = animations_newAnimation();
     green_filling_with_purple = animations_newAnimation();
 
-    purple_filling_with_green.animationDuration = animation->animationDuration / 2;
-    green_filling_with_purple.animationDuration = animation->animationDuration / 2;
+    purple_filling_with_green.duration = animation->duration / 2;
+    green_filling_with_purple.duration = animation->duration / 2;
 
     // We will start these up when appropriate.
     purple_filling_with_green.isFinished = true;
@@ -162,7 +163,7 @@ void animation_reactor2(Animation *animation, double current_ms) {
     
     // Arduino LEDs
     arduino_animation = animations_newAnimation();
-    arduino_animation.animationDuration = 50.0;
+    arduino_animation.duration = 50.0;
     arduino_animation.function = &animate_arduino_LEDs;
     animations_addAnimation(&arduino_animation);
   }
@@ -190,14 +191,29 @@ o o o o o . x X
 */
 
 void animation_chargingUp(Animation *animation, double current_ms) {
-  int primary = YELLOW_COLOR;
-  int secondary = ORANGE_COLOR;
-  int tertiary = RED_COLOR;
+  int primary = GREEN_COLOR;
+  int secondary = TEAL_COLOR;
+  int tertiary = BLUE_COLOR;
 
   double percentage_complete = animation_boilerplate(animation, current_ms);
+  
+  // Make this animation speed up and slow down over time.
+  if (last_run(percentage_complete)) {
+    if (animation->userInfo == 0.0) {
+      // First time.
+      animation->userInfo = 100.0;
+    }
+    
+    animation->duration += animation->userInfo;
 
-  // Try to turn the brightness down.
-  if (first_run(percentage_complete)) {
+    Serial.println(animation->duration);
+    
+    if (animation->duration > 1000.0 * 4.0) {
+      animation->userInfo = -100.0;
+    }
+    if (animation->duration < 10) {
+      animation->userInfo = 100.0;
+    }
   }
 
   uint8_t const keyframes = _weapon.numPixels() + 4;
@@ -318,7 +334,7 @@ Animation animations_newAnimation() {
 // Run this in the beginning of all animations.
 // Returns the animation percentage given the current time.
 double animation_boilerplate(Animation *animation, double current_ms) {
-  double const animation_length_ms = animation->animationDuration;
+  double const animation_length_ms = animation->duration;
   double end_time_ms = animation->endTime;
 
   // Is this the first run?
