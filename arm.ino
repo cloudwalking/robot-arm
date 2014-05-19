@@ -44,7 +44,7 @@ Adafruit_NeoPixel _pixels = _reactor;
 
 // Function prototypes, for argument defaults
 void animate_backgroundColorWithColorFillingForward(Adafruit_NeoPixel pixels, uint16_t back, uint16_t fill,
-    Animation *animation, double current_ms, int8_t lowRange = -1, int8_t highRange = -1);
+  Animation *animation, double current_ms, int8_t lowRange = -1, int8_t highRange = -1);
 
 void setup() {
   animations_count = 0;
@@ -62,26 +62,32 @@ void setup() {
   reactor1.duration = 400.0;
   reactor1.function = &animation_reactor1;
 
-  animations_addAnimation(&reactor1);
+  // animations_addAnimation(&reactor1);
 
   static Animation reactor2 = animations_newAnimation();
   reactor2.duration = 500.0;
   reactor2.function = &animation_reactor2;
   reactor2.zIndex = 10;
 
-  animations_addAnimation(&reactor2);
+  // animations_addAnimation(&reactor2);
 
   static Animation weapon1 = animations_newAnimation();
   weapon1.duration = 8000.0;
   weapon1.function = &animation_weapon1;
   
-  animations_addAnimation(&weapon1);
+  // animations_addAnimation(&weapon1);
 
   static Animation charging = animations_newAnimation();
   charging.duration = 100.0;
   charging.function = &animation_chargingUp;
 
   // animations_addAnimation(&charging);
+
+  static Animation twinkling = animations_newAnimation();
+  twinkling.duration = 30.0;
+  twinkling.function = &animation_twinkle;
+
+  animations_addAnimation(&twinkling);
 }
 
 void loop() {
@@ -149,6 +155,7 @@ void animation_reactor1(Animation *animation, double current_ms) {
 void animation_reactor2(Animation *animation, double current_ms) {
   double percentage_complete = animation_boilerplate(animation, current_ms);
 
+  // Reactor
   uint8_t leds = (rand() % 2) + 2; // 2 or 3 LEDs.
   bool proc = whiteNoise(_reactor, 30, leds);
   animation->userInfo += proc;
@@ -163,8 +170,9 @@ void animation_reactor2(Animation *animation, double current_ms) {
     animation->userInfo = 0.0;
 
     // Other strip
-    whiteNoise(_weapon, 1, 3);
-    whiteNoise(_weapon, 50, 3);
+    whiteNoise(_weapon, 1, 3 + rand() % 5);
+    whiteNoise(_weapon, 50, 3 + rand() % 7);
+    whiteNoise(_weapon, 200, 10);
     
     // Arduino LEDs
     arduino_animation = animations_newAnimation();
@@ -183,12 +191,12 @@ void animation_weapon1(Animation *animation, double current_ms) {
   // Loop forever
   animation->isFinished = false;
 
-  animate_backgroundColorWithColorFillingForward(_weapon, OFF_COLOR, BLUE_COLOR,
+  uint16_t const pale_blue = 214;
+
+  animate_backgroundColorWithColorFillingForward(_weapon, OFF_COLOR, pale_blue,
                                                  animation, current_ms, 0, 4);
-  animate_backgroundColorWithColorFillingForward(_weapon, OFF_COLOR, BLUE_COLOR,
+  animate_backgroundColorWithColorFillingForward(_weapon, OFF_COLOR, pale_blue,
                                                 animation, current_ms, 9, 5);
-  // animate_backgroundColorWithColorFillingForward(_weapon, OFF_COLOR, BLUE_COLOR,
-  //                                                animation, current_ms);
 }
 
 /*
@@ -245,6 +253,26 @@ void animation_chargingUp(Animation *animation, double current_ms) {
   
   c = map(percent, 0, 100, secondary, tertiary);
   _weapon.setPixelColor(leading_pixel - 4, color(c));
+}
+
+void animation_twinkle(Animation *animation, double current_ms) {
+  double percentage_complete = animation_boilerplate(animation, current_ms);
+
+  if (percentage_complete == 0.0) {
+    int16_t const base_color = RED_COLOR;
+  
+    for (uint8_t i = 0; i < _reactor.numPixels(); i++) {
+      uint8_t adjustment = rand() % ORANGE_COLOR;
+      uint16_t c = base_color + adjustment;
+      _reactor.setPixelColor(i, color(c));
+    }
+
+    for (uint8_t i = 0; i < _weapon.numPixels(); i++) {
+      uint8_t adjustment = rand() % (ORANGE_COLOR / 2);
+      uint16_t c = base_color + adjustment;
+      _weapon.setPixelColor(i, color(c));
+    }
+  }
 }
 
 void animation_reactor_PurpleWithGreenFillingForward(Animation *animation, double current_ms) {
