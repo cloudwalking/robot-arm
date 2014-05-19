@@ -8,7 +8,7 @@
 #define REACTOR_LED_DATA_PIN 6
 #define REACTOR_LED_DEFAULT_BRIGHTNESS 40
 
-#define WEAPON_LED_COUNT 5
+#define WEAPON_LED_COUNT 10
 #define WEAPON_LED_DATA_PIN 5
 #define WEAPON_LED_DEFAULT_BRIGHTNESS 20
 
@@ -39,7 +39,12 @@ uint8_t animations_count;
 Adafruit_NeoPixel _reactor = Adafruit_NeoPixel(REACTOR_LED_COUNT, REACTOR_LED_DATA_PIN, NEO_GRB + NEO_KHZ400);
 Adafruit_NeoPixel _weapon = Adafruit_NeoPixel(WEAPON_LED_COUNT, WEAPON_LED_DATA_PIN, NEO_GRB + NEO_KHZ400);
 
+// Generic
 Adafruit_NeoPixel _pixels = _reactor;
+
+// Function prototypes, for argument defaults
+void animate_backgroundColorWithColorFillingForward(Adafruit_NeoPixel pixels, uint16_t back, uint16_t fill,
+    Animation *animation, double current_ms, int8_t lowRange = -1, int8_t highRange = -1);
 
 void setup() {
   animations_count = 0;
@@ -57,26 +62,26 @@ void setup() {
   reactor1.duration = 400.0;
   reactor1.function = &animation_reactor1;
 
-  // animations_addAnimation(&reactor1);
+  animations_addAnimation(&reactor1);
 
   static Animation reactor2 = animations_newAnimation();
   reactor2.duration = 500.0;
   reactor2.function = &animation_reactor2;
   reactor2.zIndex = 10;
 
-  // animations_addAnimation(&reactor2);
+  animations_addAnimation(&reactor2);
 
   static Animation weapon1 = animations_newAnimation();
-  weapon1.duration = 12000.0;
+  weapon1.duration = 8000.0;
   weapon1.function = &animation_weapon1;
   
-  // animations_addAnimation(&weapon1);
+  animations_addAnimation(&weapon1);
 
   static Animation charging = animations_newAnimation();
   charging.duration = 100.0;
   charging.function = &animation_chargingUp;
 
-  animations_addAnimation(&charging);
+  // animations_addAnimation(&charging);
 }
 
 void loop() {
@@ -179,7 +184,11 @@ void animation_weapon1(Animation *animation, double current_ms) {
   animation->isFinished = false;
 
   animate_backgroundColorWithColorFillingForward(_weapon, OFF_COLOR, BLUE_COLOR,
-                                                 animation, current_ms);
+                                                 animation, current_ms, 0, 4);
+  animate_backgroundColorWithColorFillingForward(_weapon, OFF_COLOR, BLUE_COLOR,
+                                                animation, current_ms, 9, 5);
+  // animate_backgroundColorWithColorFillingForward(_weapon, OFF_COLOR, BLUE_COLOR,
+  //                                                animation, current_ms);
 }
 
 /*
@@ -195,7 +204,7 @@ void animation_chargingUp(Animation *animation, double current_ms) {
   int const secondary = TEAL_COLOR;
   int const tertiary = BLUE_COLOR;
   
-  double const speed_delta = 50.0;
+  double const speed_delta_ms = 50.0;
 
   double percentage_complete = animation_boilerplate(animation, current_ms);
   
@@ -203,17 +212,17 @@ void animation_chargingUp(Animation *animation, double current_ms) {
   if (last_run(percentage_complete)) {
     if (animation->userInfo == 0.0) {
       // First time.
-      animation->userInfo = speed_delta;
+      animation->userInfo = speed_delta_ms;
     }
     
     animation->duration += animation->userInfo;
     
     int const seconds = 1000 * 3;
     if (animation->duration > seconds) {
-      animation->userInfo = -1 * speed_delta;
+      animation->userInfo = -1 * speed_delta_ms;
     }
-    if (animation->duration < speed_delta) {
-      animation->userInfo = speed_delta;
+    if (animation->duration < speed_delta_ms) {
+      animation->userInfo = speed_delta_ms;
     }
   }
 
@@ -254,32 +263,58 @@ void animation_reactor_GreenWithPurpleFillingForward(Animation *animation, doubl
 // Third keyframe is second pixel colored.
 // Etc.
 void animate_backgroundColorWithColorFillingForward(Adafruit_NeoPixel pixels, uint16_t back, uint16_t fill,
-                                                    Animation *animation, double current_ms) {
+                                                    Animation *animation, double current_ms, int8_t lowRange, int8_t highRange) {
   if (animation->isFinished) {
     return;
   }
 
   double percentage_complete = animation_boilerplate(animation, current_ms);
-  
+  if (percentage_complete > 100.0) return;
+
+  if (lowRange == -1) {
+    lowRange = 0;
+  }
+  if (highRange == -1) {
+    highRange = pixels.numPixels() - 1;
+  }
+
+  bool swapDirection = highRange < lowRange;
+
   // Now push some pixels!
   
   // First keyframe is all background color.
   // Second keyframe is first pixel colored.
   // Third keyframe is second pixel colored.
   // Etc.
-  double const numberOfKeyframes = 1 + pixels.numPixels();
+  uint8_t pixelCount = max(highRange, lowRange) - min(highRange, lowRange) + 1;
+
+  double const numberOfKeyframes = 1 + pixelCount;
   
   // This animation fills in LEDs from left to right. Choose the furthest right pixel.
-  int right_pixel = percentage_complete / (100.0 / numberOfKeyframes);
+  int right_pixel = swapDirection
+      ? lowRange - floor((percentage_complete / (100.0 / numberOfKeyframes)))
+      : lowRange + floor((percentage_complete / (100.0 / numberOfKeyframes)));
   
   // Fill in everything up to the right.
-  for (int16_t i = 0; i < right_pixel; i++) {
-    pixels.setPixelColor(i, color(fill));
+  if (swapDirection) {
+    for (uint8_t i = lowRange; i > right_pixel; i--) {
+      pixels.setPixelColor(i, color(fill));
+    }
+  } else {
+    for (int8_t i = lowRange; i < right_pixel; i++) {
+      pixels.setPixelColor(i, color(fill));
+    }
   }
   
   // Fill in everything else.
-  for (uint16_t i = right_pixel; i < pixels.numPixels(); i++) {
-    pixels.setPixelColor(i, color(back));
+  if (swapDirection) {
+    for (uint8_t i = right_pixel; i >= highRange; i--) {
+      pixels.setPixelColor(i, color(back));
+    }
+  } else {
+    for (uint8_t i = right_pixel; i <= highRange; i++) {
+      pixels.setPixelColor(i, color(back));
+    }
   }
 }
 
@@ -391,33 +426,6 @@ void animations_sortAnimations() {
     }
   }
 }
-
-/////////////////////////////////////////////////////
-/////////////////////////////////////////////////////
-/////////////////////////////////////////////////////
-
-// void animate_backgroundColorWithColorFillingInBackward(Adafruit_NeoPixel pixels, uint16_t background, uint16_t fill, uint16_t wait) {
-//   full_color(pixels, background);
-//   show(pixels);
-//   delay(wait);
-// 
-//   for (int16_t i = pixels.numPixels() - 1; i >= 0; i--) {
-//     pixels.setPixelColor(i, color(fill));
-//     pixels.show();
-//     whiteNoise(pixels, WHITE_NOISE_FREQUENCY, (rand() % 3) + 1);
-//     delay(wait);
-//   }
-// }
-// 
-// void whiteNoise(Adafruit_NeoPixel pixels, uint16_t chance, uint16_t number_to_light) {
-//   // srand(millis());
-//   if (rand() % chance == 0) {
-//     for (uint16_t i = 0; i < number_to_light; i++) {
-//       uint16_t pixel = rand() % pixels.numPixels();
-//       pixels.setPixelColor(pixel, color(WHITE_COLOR));
-//     }
-//   }
-// }
 
 void full_color(Adafruit_NeoPixel pixels, uint16_t c) {
   for (uint16_t i = 0; i < pixels.numPixels(); i++) {
