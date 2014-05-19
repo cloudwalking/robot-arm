@@ -290,16 +290,14 @@ void animation_startup(Animation *animation, double current_ms) {
   if (!animation->isFinished) {
     full_off(_reactor);
     full_off(_weapon);
+    _reactor.setBrightness(100);
     _reactor.setPixelColor(0, _pixels.Color(127, 0, 0)); // Red
     _reactor.setPixelColor(1, _pixels.Color(0, 127 * 0.5, 0)); // Green
     _reactor.setPixelColor(2, _pixels.Color(0, 0, 127 * 0.5)); // Blue
   }
   // Last run of this animation.
   else if (!is_finished_before_boilerplate) {
-    // uint32_t white = _pixels.Color(127 * 0.2, 127 * 0.2, 127 * 0.2);
-    // _reactor.setPixelColor(0, color(WHITE_COLOR));
-    // _reactor.setPixelColor(1, color(WHITE_COLOR));
-    // _reactor.setPixelColor(2, color(WHITE_COLOR));
+    _reactor.setBrightness(REACTOR_LED_DEFAULT_BRIGHTNESS);
   }
 }
 
