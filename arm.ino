@@ -88,6 +88,13 @@ void setup() {
   twinkling.function = &animation_twinkle;
 
   animations_addAnimation(&twinkling);
+  
+  static Animation startup = animations_newAnimation();
+  startup.duration = 3000.0;
+  startup.function = &animation_startup;
+  startup.zIndex = 20;
+  
+  animations_addAnimation(&startup);
 }
 
 void loop() {
@@ -275,6 +282,27 @@ void animation_twinkle(Animation *animation, double current_ms) {
   }
 }
 
+void animation_startup(Animation *animation, double current_ms) {
+  bool is_finished_before_boilerplate = animation->isFinished;
+  
+  double percentage_complete = animation_boilerplate(animation, current_ms);
+
+  if (!animation->isFinished) {
+    full_off(_reactor);
+    full_off(_weapon);
+    _reactor.setPixelColor(0, _pixels.Color(127, 0, 0)); // Red
+    _reactor.setPixelColor(1, _pixels.Color(0, 127 * 0.5, 0)); // Green
+    _reactor.setPixelColor(2, _pixels.Color(0, 0, 127 * 0.5)); // Blue
+  }
+  // Last run of this animation.
+  else if (!is_finished_before_boilerplate) {
+    // uint32_t white = _pixels.Color(127 * 0.2, 127 * 0.2, 127 * 0.2);
+    // _reactor.setPixelColor(0, color(WHITE_COLOR));
+    // _reactor.setPixelColor(1, color(WHITE_COLOR));
+    // _reactor.setPixelColor(2, color(WHITE_COLOR));
+  }
+}
+
 void animation_reactor_PurpleWithGreenFillingForward(Animation *animation, double current_ms) {
   animate_backgroundColorWithColorFillingForward(_reactor, PURPLE_COLOR, GREEN_COLOR,
                                                  animation, current_ms);
@@ -407,7 +435,7 @@ double animation_boilerplate(Animation *animation, double current_ms) {
     animation->endTime = end_time_ms;
   }
   // Expired animation?
-  else if (end_time_ms <= current_ms) {
+  else if (current_ms >= end_time_ms) {
     // Reset this animation for next time.
     animation->endTime = 0.0;
     // Mark that we're done.
