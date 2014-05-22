@@ -25,6 +25,8 @@
 // Chance for white noise, 1/X
 #define WHITE_NOISE_FREQUENCY 7
 
+#define DEFAULT_ROOT_ANIMATION_DURATION 30000.0
+
 // Useful macros
 
 #define first_run(percentage_complete) percentage_complete == 0.0
@@ -44,10 +46,11 @@ Adafruit_NeoPixel _pixels = _reactor;
 
 // Function prototypes, for argument defaults
 void animate_backgroundColorWithColorFillingForward(Adafruit_NeoPixel pixels, uint16_t back, uint16_t fill,
-  Animation *animation, double current_ms, int8_t lowRange = -1, int8_t highRange = -1);
+    Animation *animation, double current_ms, int8_t lowRange = -1, int8_t highRange = -1);
+uint32_t color(int16_t color, float brightness = 1.0);
 
 void setup() {
-  // randomSeed(analogRead(0));
+  randomSeed(analogRead(0));
 
   animations_count = 0;
   
@@ -60,50 +63,10 @@ void setup() {
   // it randomly transforms into one of a few different animations.
   
   static Animation root = animations_newAnimation();
-  root.duration = 5000.0;
+  root.duration = DEFAULT_ROOT_ANIMATION_DURATION;
   root.function = &animation_root;
 
   animations_addAnimation(&root);
-  
-  
-  // Create the animations and add them to the animations array.
-  
-  // static Animation startup = animations_newAnimation();
-  // startup.duration = 3000.0;
-  // startup.function = &animation_startup;
-  // startup.zIndex = 20;
-  
-  // animations_addAnimation(&startup);
-  
-  if (true) {
-    // static Animation reactor1 = animations_newAnimation();
-    // reactor1.duration = 400.0;
-    // reactor1.function = &animation_reactor1;
-    // animations_addAnimation(&reactor1);
-
-    // static Animation reactor2 = animations_newAnimation();
-    // reactor2.duration = 500.0;
-    // reactor2.function = &animation_reactor2;
-    // reactor2.zIndex = 10;
-    // animations_addAnimation(&reactor2);
-
-    // static Animation weapon1 = animations_newAnimation();
-    // weapon1.duration = 8000.0;
-    // weapon1.function = &animation_weapon1;
-    // animations_addAnimation(&weapon1);
-  } else {
-    // static Animation charging = animations_newAnimation();
-    // charging.duration = 100.0;
-    // charging.function = &animation_chargingUp;
-    // 
-    // animations_addAnimation(&charging);
-
-    // static Animation twinkling = animations_newAnimation();
-    // twinkling.duration = 30.0;
-    // twinkling.function = &animation_twinkle;
-    // 
-    // animations_addAnimation(&twinkling);
-  }
 }
 
 void setupNeopixels() {
@@ -136,45 +99,71 @@ void animation_root(Animation *animation, double current_ms) {
   if (last_run(percentage_complete)) {
     // Remove all other animations from the stack.
     animations_count = 1;
+    // Reset our duration.
+    animation->duration = DEFAULT_ROOT_ANIMATION_DURATION;
   }
   
   if (first_run(percentage_complete)) {
-    int dice = rand() % 2;
+    int dice = rand() % 5;
     switch (dice) {
       
       case 0:
-      
-        static Animation reactor1 = animations_newAnimation();
-        reactor1.duration = 400.0;
-        reactor1.function = &animation_reactor1;
-        animations_addAnimation(&reactor1);
+      case 1: { // Two runs because we have two color options
+
+        static Animation spin = animations_newAnimation();
+        spin.duration = 400.0;
+        if (rand() % 2) spin.function = &animation_reactor_spin_GREEN;
+        else            spin.function = &animation_reactor_spin_RED;
+        animations_addAnimation(&spin);
         
-        static Animation reactor2 = animations_newAnimation();
-        reactor2.duration = 500.0;
-        reactor2.function = &animation_reactor2;
-        reactor2.zIndex = 10;
-        animations_addAnimation(&reactor2);
+        static Animation noise = animations_newAnimation();
+        noise.duration = 500.0;
+        noise.function = &animation_noise_fullsystem;
+        noise.zIndex = 10;
+        animations_addAnimation(&noise);
         
         static Animation wipe = animations_newAnimation();
         wipe.duration = 500.0;
         wipe.function = &animation_weapon_off;
         animations_addAnimation(&wipe);
+
+      } break;
+
+      //   animation->duration = 7000.0;
+      //   animation->endTime = 0.0;
+      //   animation_boilerplate(animation, current_ms);
+
+      case 2: {
         
-      break;
-      
-      case 1:
-      
         static Animation twinkling = animations_newAnimation();
-        twinkling.duration = 30.0;
-        twinkling.function = &animation_twinkle;
+        twinkling.duration = 200.0;
+        twinkling.function = &animation_twinkle_TEAL;
     
         animations_addAnimation(&twinkling);
         
-      break;
+      } break;
       
-      case 2:
+      case 3: {
       
-      break;
+        static Animation twinkling = animations_newAnimation();
+        twinkling.duration = 30.0;
+        twinkling.function = &animation_twinkle_RED;
+    
+        animations_addAnimation(&twinkling);
+        
+      } break;
+      
+      case 4: {
+        
+        full_off(_reactor);
+        
+        static Animation charging = animations_newAnimation();
+        charging.duration = 100.0;
+        charging.function = &animation_chargingUp;
+
+        animations_addAnimation(&charging);
+        
+      } break;
     }
   }
 }
@@ -182,7 +171,15 @@ void animation_root(Animation *animation, double current_ms) {
 // This animation is two keyframes, each of which is its own animation.
 // First keyframe is purple being filled by green.
 // Second keyframe is green being filled by purple.
-void animation_reactor1(Animation *animation, double current_ms) {
+void animation_reactor_spin_GREEN(Animation *animation, double current_ms) {
+  _animation_reactor_spin(GREEN_COLOR, animation, current_ms);
+}
+
+void animation_reactor_spin_RED(Animation *animation, double current_ms) {
+  _animation_reactor_spin(RED_COLOR, animation, current_ms);
+}
+
+void _animation_reactor_spin(uint16_t color_choice, Animation *animation, double current_ms) {
   double percentage_complete = animation_boilerplate(animation, current_ms);
   
   static Animation purple_filling_with_green;
@@ -200,11 +197,23 @@ void animation_reactor1(Animation *animation, double current_ms) {
     purple_filling_with_green.isFinished = true;
     green_filling_with_purple.isFinished = true;
     
-    void (*purple_filling_with_green_fn)(Animation *, double) = &animation_reactor_PurpleWithGreenFillingForward;
-    void (*green_filling_with_purple_fn)(Animation *, double) = &animation_reactor_GreenWithPurpleFillingForward;
+    void (*b_filling_with_a_fn)(Animation *, double);
+    void (*a_filling_with_b_fn)(Animation *, double);
+    
+    // Pick the proper color sub animations based on the given color choice.
+    switch (color_choice) {
+      case GREEN_COLOR:
+        a_filling_with_b_fn = &animation_reactor_GreenWithPurpleFillingForward;
+        b_filling_with_a_fn = &animation_reactor_PurpleWithGreenFillingForward;
+        break;
+      case RED_COLOR:
+        a_filling_with_b_fn = &animation_reactor_RedWithPurpleFillingForward;
+        b_filling_with_a_fn = &animation_reactor_PurpleWithRedFillingForward;
+        break;
+    }
 
-    purple_filling_with_green.function = purple_filling_with_green_fn;
-    green_filling_with_purple.function = green_filling_with_purple_fn;
+    purple_filling_with_green.function = b_filling_with_a_fn;
+    green_filling_with_purple.function = a_filling_with_b_fn;
     
     animations_addAnimation(&purple_filling_with_green);
     animations_addAnimation(&green_filling_with_purple);
@@ -225,12 +234,21 @@ void animation_reactor1(Animation *animation, double current_ms) {
 
 // This is the "short circuit" white noise on the reactor strip.
 // Also periodically applies to the weapon strip too.
-void animation_reactor2(Animation *animation, double current_ms) {
+void animation_noise_fullsystem(Animation *animation, double current_ms) {
+  _animation_noise(animation, current_ms, false);
+}
+
+void animation_noise_reactor(Animation *animation, double current_ms) {
+  _animation_noise(animation, current_ms, true);
+}
+
+void _animation_noise(Animation *animation, double current_ms, bool reactor_only) {
   double percentage_complete = animation_boilerplate(animation, current_ms);
 
   // Reactor
   uint8_t leds = (rand() % 2) + 2; // 2 or 3 LEDs.
-  bool proc = whiteNoise(_reactor, 30, leds);
+  uint8_t chance = reactor_only ? 15 : 30;
+  bool proc = whiteNoise(_reactor, chance, leds);
   animation->userInfo += proc;
   
   // White noise is random. Each time it procs, we increment our userInfo counter.
@@ -241,17 +259,19 @@ void animation_reactor2(Animation *animation, double current_ms) {
   static Animation arduino_animation;
   if (animation->userInfo >= threshold) {
     animation->userInfo = 0.0;
-
-    // Other strip
-    whiteNoise(_weapon, 1, 3 + rand() % 5);
-    whiteNoise(_weapon, 50, 3 + rand() % 7);
-    whiteNoise(_weapon, 200, 10);
     
-    // Arduino LEDs
-    arduino_animation = animations_newAnimation();
-    arduino_animation.duration = 50.0;
-    arduino_animation.function = &animate_arduino_LEDs;
-    animations_addAnimation(&arduino_animation);
+    // The proc is actually slightly too fast.
+    if (!reactor_only && rand() % 3) {
+      // Other strip
+      whiteNoise(_weapon, 1, 3 + rand() % 5);
+      whiteNoise(_weapon, 50, 3 + rand() % 7);
+      whiteNoise(_weapon, 200, 10);
+      // Arduino LEDs
+      arduino_animation = animations_newAnimation();
+      arduino_animation.duration = 50.0;
+      arduino_animation.function = &animate_arduino_LEDs;
+      animations_addAnimation(&arduino_animation);
+    }
   }
   
   // Last run? Reset our user info.
@@ -270,12 +290,6 @@ void animation_weapon1(Animation *animation, double current_ms) {
                                                  animation, current_ms, 0, 4);
   animate_backgroundColorWithColorFillingForward(_weapon, OFF_COLOR, pale_blue,
                                                 animation, current_ms, 9, 5);
-}
-
-void animation_weapon_off(Animation *animation, double current_ms) {
-  double percentage_complete = animation_boilerplate(animation, current_ms);
-  
-  full_off(_weapon);
 }
 
 /*
@@ -334,20 +348,26 @@ void animation_chargingUp(Animation *animation, double current_ms) {
   _weapon.setPixelColor(leading_pixel - 4, color(c));
 }
 
-void animation_twinkle(Animation *animation, double current_ms) {
+void animation_twinkle_RED(Animation *animation, double current_ms) {
+  _animation_twinkle(RED_COLOR, 32, 16, animation, current_ms);
+}
+
+void animation_twinkle_TEAL(Animation *animation, double current_ms) {
+  _animation_twinkle(TEAL_COLOR, 64, 32, animation, current_ms);
+}
+
+void _animation_twinkle(uint16_t base_color, uint16_t big_shift, uint16_t little_shift, Animation *animation, double current_ms) {
   double percentage_complete = animation_boilerplate(animation, current_ms);
 
   if (percentage_complete == 0.0) {
-    int16_t const base_color = RED_COLOR;
-  
     for (uint8_t i = 0; i < _reactor.numPixels(); i++) {
-      uint8_t adjustment = rand() % ORANGE_COLOR;
+      uint8_t adjustment = rand() % big_shift;
       uint16_t c = base_color + adjustment;
       _reactor.setPixelColor(i, color(c));
     }
 
     for (uint8_t i = 0; i < _weapon.numPixels(); i++) {
-      uint8_t adjustment = rand() % (ORANGE_COLOR / 2);
+      uint8_t adjustment = rand() % little_shift;
       uint16_t c = base_color + adjustment;
       _weapon.setPixelColor(i, color(c));
     }
@@ -373,6 +393,16 @@ void animation_startup(Animation *animation, double current_ms) {
   }
 }
 
+void animation_weapon_off(Animation *animation, double current_ms) {
+  double percentage_complete = animation_boilerplate(animation, current_ms);
+  full_off(_weapon);
+}
+
+void animation_reactor_off(Animation *animation, double current_ms) {
+  double percentage_complete = animation_boilerplate(animation, current_ms);
+  full_off(_reactor);
+}
+
 void animation_reactor_PurpleWithGreenFillingForward(Animation *animation, double current_ms) {
   animate_backgroundColorWithColorFillingForward(_reactor, PURPLE_COLOR, GREEN_COLOR,
                                                  animation, current_ms);
@@ -380,6 +410,16 @@ void animation_reactor_PurpleWithGreenFillingForward(Animation *animation, doubl
 
 void animation_reactor_GreenWithPurpleFillingForward(Animation *animation, double current_ms) {
   animate_backgroundColorWithColorFillingForward(_reactor, GREEN_COLOR, PURPLE_COLOR,
+                                                animation, current_ms);
+}
+
+void animation_reactor_PurpleWithRedFillingForward(Animation *animation, double current_ms) {
+  animate_backgroundColorWithColorFillingForward(_reactor, PURPLE_COLOR, RED_COLOR,
+                                                 animation, current_ms);
+}
+
+void animation_reactor_RedWithPurpleFillingForward(Animation *animation, double current_ms) {
+  animate_backgroundColorWithColorFillingForward(_reactor, RED_COLOR, PURPLE_COLOR,
                                                 animation, current_ms);
 }
 
@@ -569,9 +609,15 @@ void show(Adafruit_NeoPixel pixels) {
   pixels.show(); 
 }
 
-// Color 0 from 383
-// -1 is white
-uint32_t color(int16_t color)  {
+uint32_t fuzzy_color(int16_t c, uint8_t fuzziness) {
+  return color(c + rand() % fuzziness);
+}
+
+// Color 0 from 383.
+// -1 is white.
+// Brightness is a multiplier from 1.0 to 0.0.
+
+uint32_t color(int16_t color, float brightness)  {
   if (color == -1) {
     return _pixels.Color(255, 255, 255);
   }
@@ -598,6 +644,9 @@ uint32_t color(int16_t color)  {
       b = 127 - color % 128;
       break;
   }
+  r = r * brightness;
+  g = g * brightness;
+  b = b * brightness;
   return _pixels.Color(r, g, b);
 }
 
