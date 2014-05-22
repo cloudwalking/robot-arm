@@ -47,54 +47,71 @@ void animate_backgroundColorWithColorFillingForward(Adafruit_NeoPixel pixels, ui
   Animation *animation, double current_ms, int8_t lowRange = -1, int8_t highRange = -1);
 
 void setup() {
+  // randomSeed(analogRead(0));
+
   animations_count = 0;
   
   Serial.begin(9600);
   // while (!Serial) { }
 
+  setupNeopixels();
+  
+  // Add the root animation. When this animation starts,
+  // it randomly transforms into one of a few different animations.
+  
+  static Animation root = animations_newAnimation();
+  root.duration = 5000.0;
+  root.function = &animation_root;
+
+  animations_addAnimation(&root);
+  
+  
+  // Create the animations and add them to the animations array.
+  
+  // static Animation startup = animations_newAnimation();
+  // startup.duration = 3000.0;
+  // startup.function = &animation_startup;
+  // startup.zIndex = 20;
+  
+  // animations_addAnimation(&startup);
+  
+  if (true) {
+    // static Animation reactor1 = animations_newAnimation();
+    // reactor1.duration = 400.0;
+    // reactor1.function = &animation_reactor1;
+    // animations_addAnimation(&reactor1);
+
+    // static Animation reactor2 = animations_newAnimation();
+    // reactor2.duration = 500.0;
+    // reactor2.function = &animation_reactor2;
+    // reactor2.zIndex = 10;
+    // animations_addAnimation(&reactor2);
+
+    // static Animation weapon1 = animations_newAnimation();
+    // weapon1.duration = 8000.0;
+    // weapon1.function = &animation_weapon1;
+    // animations_addAnimation(&weapon1);
+  } else {
+    // static Animation charging = animations_newAnimation();
+    // charging.duration = 100.0;
+    // charging.function = &animation_chargingUp;
+    // 
+    // animations_addAnimation(&charging);
+
+    // static Animation twinkling = animations_newAnimation();
+    // twinkling.duration = 30.0;
+    // twinkling.function = &animation_twinkle;
+    // 
+    // animations_addAnimation(&twinkling);
+  }
+}
+
+void setupNeopixels() {
   _reactor.begin();
   _weapon.begin();
   
   _reactor.setBrightness(REACTOR_LED_DEFAULT_BRIGHTNESS);
   _weapon.setBrightness(WEAPON_LED_DEFAULT_BRIGHTNESS);
-
-  static Animation reactor1 = animations_newAnimation();
-  reactor1.duration = 400.0;
-  reactor1.function = &animation_reactor1;
-
-  // animations_addAnimation(&reactor1);
-
-  static Animation reactor2 = animations_newAnimation();
-  reactor2.duration = 500.0;
-  reactor2.function = &animation_reactor2;
-  reactor2.zIndex = 10;
-
-  // animations_addAnimation(&reactor2);
-
-  static Animation weapon1 = animations_newAnimation();
-  weapon1.duration = 8000.0;
-  weapon1.function = &animation_weapon1;
-  
-  // animations_addAnimation(&weapon1);
-
-  static Animation charging = animations_newAnimation();
-  charging.duration = 100.0;
-  charging.function = &animation_chargingUp;
-
-  // animations_addAnimation(&charging);
-
-  static Animation twinkling = animations_newAnimation();
-  twinkling.duration = 30.0;
-  twinkling.function = &animation_twinkle;
-
-  animations_addAnimation(&twinkling);
-  
-  static Animation startup = animations_newAnimation();
-  startup.duration = 3000.0;
-  startup.function = &animation_startup;
-  startup.zIndex = 20;
-  
-  animations_addAnimation(&startup);
 }
 
 void loop() {
@@ -111,6 +128,55 @@ void animations_loop() {
   }
   show(_reactor);
   show(_weapon);
+}
+
+void animation_root(Animation *animation, double current_ms) {
+  double percentage_complete = animation_boilerplate(animation, current_ms);
+  
+  if (last_run(percentage_complete)) {
+    // Remove all other animations from the stack.
+    animations_count = 1;
+  }
+  
+  if (first_run(percentage_complete)) {
+    int dice = rand() % 2;
+    switch (dice) {
+      
+      case 0:
+      
+        static Animation reactor1 = animations_newAnimation();
+        reactor1.duration = 400.0;
+        reactor1.function = &animation_reactor1;
+        animations_addAnimation(&reactor1);
+        
+        static Animation reactor2 = animations_newAnimation();
+        reactor2.duration = 500.0;
+        reactor2.function = &animation_reactor2;
+        reactor2.zIndex = 10;
+        animations_addAnimation(&reactor2);
+        
+        static Animation wipe = animations_newAnimation();
+        wipe.duration = 500.0;
+        wipe.function = &animation_weapon_off;
+        animations_addAnimation(&wipe);
+        
+      break;
+      
+      case 1:
+      
+        static Animation twinkling = animations_newAnimation();
+        twinkling.duration = 30.0;
+        twinkling.function = &animation_twinkle;
+    
+        animations_addAnimation(&twinkling);
+        
+      break;
+      
+      case 2:
+      
+      break;
+    }
+  }
 }
 
 // This animation is two keyframes, each of which is its own animation.
@@ -169,7 +235,7 @@ void animation_reactor2(Animation *animation, double current_ms) {
   
   // White noise is random. Each time it procs, we increment our userInfo counter.
   // Once a threshold is met, we light up the other strip too.
-  double threshold = 2.0;
+  double threshold = 1.0;
   
   // BOOM light up everything on the contraption.
   static Animation arduino_animation;
@@ -204,6 +270,12 @@ void animation_weapon1(Animation *animation, double current_ms) {
                                                  animation, current_ms, 0, 4);
   animate_backgroundColorWithColorFillingForward(_weapon, OFF_COLOR, pale_blue,
                                                 animation, current_ms, 9, 5);
+}
+
+void animation_weapon_off(Animation *animation, double current_ms) {
+  double percentage_complete = animation_boilerplate(animation, current_ms);
+  
+  full_off(_weapon);
 }
 
 /*
