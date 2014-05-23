@@ -50,7 +50,7 @@ void animate_backgroundColorWithColorFillingForward(Adafruit_NeoPixel pixels, ui
 uint32_t color(int16_t color, float brightness = 1.0);
 
 void setup() {
-  randomSeed(analogRead(0));
+  randomSeed(analogRead(A0));
 
   animations_count = 0;
   
@@ -104,7 +104,7 @@ void animation_root(Animation *animation, double current_ms) {
   }
   
   if (first_run(percentage_complete)) {
-    int dice = rand() % 5;
+    int dice = random() % 6;
     switch (dice) {
       
       case 0:
@@ -112,7 +112,7 @@ void animation_root(Animation *animation, double current_ms) {
 
         static Animation spin = animations_newAnimation();
         spin.duration = 400.0;
-        if (rand() % 2) spin.function = &animation_reactor_spin_GREEN;
+        if (random() % 2) spin.function = &animation_reactor_spin_GREEN;
         else            spin.function = &animation_reactor_spin_RED;
         animations_addAnimation(&spin);
         
@@ -129,14 +129,10 @@ void animation_root(Animation *animation, double current_ms) {
 
       } break;
 
-      //   animation->duration = 7000.0;
-      //   animation->endTime = 0.0;
-      //   animation_boilerplate(animation, current_ms);
-
       case 2: {
         
         static Animation twinkling = animations_newAnimation();
-        twinkling.duration = 200.0;
+        twinkling.duration = 120.0;
         twinkling.function = &animation_twinkle_TEAL;
     
         animations_addAnimation(&twinkling);
@@ -162,6 +158,21 @@ void animation_root(Animation *animation, double current_ms) {
         charging.function = &animation_chargingUp;
 
         animations_addAnimation(&charging);
+        
+      } break;
+      
+      case 5: {
+
+        // Shorten this root cycle because it's not super thrilling.
+        animation->duration = animation->duration / 2.0;
+        animation->endTime = 0.0;
+        animation_boilerplate(animation, current_ms);
+        
+        static Animation rgb = animations_newAnimation();
+        rgb.duration = animation->duration / 2.0;
+        rgb.function = &animation_rgb;
+        
+        animations_addAnimation(&rgb);
         
       } break;
     }
@@ -246,7 +257,7 @@ void _animation_noise(Animation *animation, double current_ms, bool reactor_only
   double percentage_complete = animation_boilerplate(animation, current_ms);
 
   // Reactor
-  uint8_t leds = (rand() % 2) + 2; // 2 or 3 LEDs.
+  uint8_t leds = (random() % 2) + 2; // 2 or 3 LEDs.
   uint8_t chance = reactor_only ? 15 : 30;
   bool proc = whiteNoise(_reactor, chance, leds);
   animation->userInfo += proc;
@@ -261,10 +272,10 @@ void _animation_noise(Animation *animation, double current_ms, bool reactor_only
     animation->userInfo = 0.0;
     
     // The proc is actually slightly too fast.
-    if (!reactor_only && rand() % 3) {
+    if (!reactor_only && random() % 3) {
       // Other strip
-      whiteNoise(_weapon, 1, 3 + rand() % 5);
-      whiteNoise(_weapon, 50, 3 + rand() % 7);
+      whiteNoise(_weapon, 1, 3 + random() % 5);
+      whiteNoise(_weapon, 50, 3 + random() % 7);
       whiteNoise(_weapon, 200, 10);
       // Arduino LEDs
       arduino_animation = animations_newAnimation();
@@ -353,7 +364,8 @@ void animation_twinkle_RED(Animation *animation, double current_ms) {
 }
 
 void animation_twinkle_TEAL(Animation *animation, double current_ms) {
-  _animation_twinkle(TEAL_COLOR, 64, 32, animation, current_ms);
+  _animation_twinkle(TEAL_COLOR, 32, 16, animation, current_ms);
+  noise(_weapon, 7, 10, RED_COLOR);
 }
 
 void _animation_twinkle(uint16_t base_color, uint16_t big_shift, uint16_t little_shift, Animation *animation, double current_ms) {
@@ -361,13 +373,15 @@ void _animation_twinkle(uint16_t base_color, uint16_t big_shift, uint16_t little
 
   if (percentage_complete == 0.0) {
     for (uint8_t i = 0; i < _reactor.numPixels(); i++) {
-      uint8_t adjustment = rand() % big_shift;
+      int8_t adjustment = random() % big_shift;
+      adjustment = adjustment * (random() % 2 ? 1 : -1);
       uint16_t c = base_color + adjustment;
       _reactor.setPixelColor(i, color(c));
     }
 
     for (uint8_t i = 0; i < _weapon.numPixels(); i++) {
-      uint8_t adjustment = rand() % little_shift;
+      int8_t adjustment = random() % little_shift;
+      adjustment = adjustment * (random() % 2 ? 1 : -1);
       uint16_t c = base_color + adjustment;
       _weapon.setPixelColor(i, color(c));
     }
@@ -391,6 +405,36 @@ void animation_startup(Animation *animation, double current_ms) {
   else if (!is_finished_before_boilerplate) {
     _reactor.setBrightness(REACTOR_LED_DEFAULT_BRIGHTNESS);
   }
+}
+
+void animation_rgb(Animation *animation, double current_ms) {
+  bool is_finished_before_boilerplate = animation->isFinished;
+  
+  double percentage_complete = animation_boilerplate(animation, current_ms);
+  
+  if (first_run(percentage_complete)) {
+    _reactor.setBrightness(100);
+  }
+  
+  if (last_run(percentage_complete)) {
+    _reactor.setBrightness(REACTOR_LED_DEFAULT_BRIGHTNESS);
+  }
+
+  _reactor.setPixelColor(0, _pixels.Color(127, 0, 0)); // Red
+  _reactor.setPixelColor(1, _pixels.Color(0, 127 * 0.5, 0)); // Green
+  _reactor.setPixelColor(2, _pixels.Color(0, 0, 127 * 0.5)); // Blue
+  
+  _weapon.setPixelColor(4, fuzzy_color(RED_COLOR, 15));
+  _weapon.setPixelColor(3, fuzzy_color(YELLOW_COLOR, 15));
+  _weapon.setPixelColor(2, fuzzy_color(GREEN_COLOR, 15));
+  _weapon.setPixelColor(1, fuzzy_color(BLUE_COLOR, 15));
+  _weapon.setPixelColor(0, fuzzy_color(PURPLE_COLOR, 15));
+  
+  _weapon.setPixelColor(5, fuzzy_color(RED_COLOR, 15));
+  _weapon.setPixelColor(6, fuzzy_color(YELLOW_COLOR, 15));
+  _weapon.setPixelColor(7, fuzzy_color(GREEN_COLOR, 15));
+  _weapon.setPixelColor(8, fuzzy_color(BLUE_COLOR, 15));
+  _weapon.setPixelColor(9, fuzzy_color(PURPLE_COLOR, 15));
 }
 
 void animation_weapon_off(Animation *animation, double current_ms) {
@@ -503,10 +547,14 @@ void animate_arduino_LEDs(Animation *animation, double current_ms) {
 // Lights up a specific number of pixels. Chance to occure is 1/chance.
 // Returns true if chance occurs.
 bool whiteNoise(Adafruit_NeoPixel pixels, uint16_t chance, uint16_t number_to_light) {
-  if (rand() % chance == 0) {
+  noise(pixels, chance, number_to_light, WHITE_COLOR);
+}
+
+bool noise(Adafruit_NeoPixel pixels, uint16_t chance, uint16_t number_to_light, uint16_t pixel_color) {
+  if (random() % chance == 0) {
     for (uint16_t i = 0; i < number_to_light; i++) {
-      uint16_t pixel = rand() % pixels.numPixels();
-      pixels.setPixelColor(pixel, color(WHITE_COLOR));
+      uint16_t pixel = random() % pixels.numPixels();
+      pixels.setPixelColor(pixel, color(pixel_color));
     }
     return true;
   }
@@ -610,7 +658,11 @@ void show(Adafruit_NeoPixel pixels) {
 }
 
 uint32_t fuzzy_color(int16_t c, uint8_t fuzziness) {
-  return color(c + rand() % fuzziness);
+  int16_t fuzz = random() % fuzziness;
+  if (random() % 2) fuzz = fuzz * -1;
+  uint16_t fuzzed_color = c + fuzz;
+  if (fuzzed_color > 383) fuzzed_color = 383;
+  return color(fuzzed_color);
 }
 
 // Color 0 from 383.
