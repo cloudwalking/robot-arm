@@ -132,7 +132,7 @@ void animation_root(Animation *animation, double current_ms) {
       case 2: {
         
         static Animation twinkling = animations_newAnimation();
-        twinkling.duration = 120.0;
+        twinkling.duration = 90.0;
         twinkling.function = &animation_twinkle_TEAL;
     
         animations_addAnimation(&twinkling);
@@ -367,7 +367,8 @@ void animation_twinkle_RED(Animation *animation, double current_ms) {
 
 void animation_twinkle_TEAL(Animation *animation, double current_ms) {
   _animation_twinkle(TEAL_COLOR, 32, 16, animation, current_ms);
-  noise(_weapon, 7, 10, RED_COLOR);
+  uint8_t leds = 1 + random() % 10;
+  noise(_weapon, 7, leds, RED_COLOR);
 }
 
 void _animation_twinkle(uint16_t base_color, uint16_t big_shift, uint16_t little_shift, Animation *animation, double current_ms) {
