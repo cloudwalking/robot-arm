@@ -113,7 +113,7 @@ void animation_root(Animation *animation, double current_ms) {
         static Animation spin = animations_newAnimation();
         spin.duration = 400.0;
         if (random() % 2) spin.function = &animation_reactor_spin_GREEN;
-        else            spin.function = &animation_reactor_spin_RED;
+        else              spin.function = &animation_reactor_spin_RED;
         animations_addAnimation(&spin);
         
         static Animation noise = animations_newAnimation();
@@ -361,6 +361,8 @@ void animation_chargingUp(Animation *animation, double current_ms) {
 
 void animation_twinkle_RED(Animation *animation, double current_ms) {
   _animation_twinkle(RED_COLOR, 32, 16, animation, current_ms);
+  uint8_t leds = 1 + random() % 6;
+  noise(_weapon, 55, leds, BLUE_COLOR);
 }
 
 void animation_twinkle_TEAL(Animation *animation, double current_ms) {
@@ -375,6 +377,7 @@ void _animation_twinkle(uint16_t base_color, uint16_t big_shift, uint16_t little
     for (uint8_t i = 0; i < _reactor.numPixels(); i++) {
       int8_t adjustment = random() % big_shift;
       adjustment = adjustment * (random() % 2 ? 1 : -1);
+      if (base_color == RED_COLOR) adjustment = abs(adjustment);
       uint16_t c = base_color + adjustment;
       _reactor.setPixelColor(i, color(c));
     }
@@ -382,6 +385,7 @@ void _animation_twinkle(uint16_t base_color, uint16_t big_shift, uint16_t little
     for (uint8_t i = 0; i < _weapon.numPixels(); i++) {
       int8_t adjustment = random() % little_shift;
       adjustment = adjustment * (random() % 2 ? 1 : -1);
+      if (base_color == RED_COLOR) adjustment = abs(adjustment);
       uint16_t c = base_color + adjustment;
       _weapon.setPixelColor(i, color(c));
     }
